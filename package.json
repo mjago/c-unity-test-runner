@@ -1,0 +1,24 @@
+{
+  "name": "stream",
+  "version": "0.0.0",
+  "description": "",
+  "main": "Gruntfile.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "grunt": "^0.4.5"
+  },
+  "dependencies": {
+    "chai": "^3.2.0",
+    "cli-color": "^1.0.0",
+    "event-stream": "^3.3.1",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-shell": "^1.1.2",
+    "grunt-simple-mocha": "^0.4.0",
+    "mocha": "^2.2.5",
+    "pegjs": "^0.8.0"
+  }
+}
