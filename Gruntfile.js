@@ -10,30 +10,38 @@ module.exports = function(grunt) {
         stderr: false
       },
       target: {
-        command: 'node stream.js' 
+        command: 'node stream.js'
       }
     },
     simplemocha:{
-      src:"stream.js",
+      src: "test_search_includes.js",
       options:{
         reporter: 'spec',
-//        slow: 200,
-//        timeout: 2000
-        }
+//        slow: 500,
+        timeout: 2000
+      }
     },
     watch:{
       all:{
         files: ['Gruntfile.js',
-                'stream.js',
-                'test_stream.js'
+  //              'buildTestRunner.js',
+                'test_search_includes.js',
+                'gcc.js',
+//                'generate_parser.js',
+    //            'debug.js',
+      //          'peg.js',
+        //        'stream.js',
+          //      'test_includesParser.js',
+            //    "/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/testunity.c"
                ],
-        tasks: ['shell'],
+        tasks: ['simplemocha'],
         options: {
 //          spawn: false
         }
       }
     }
   });
-  grunt.registerTask(['build', 'shell', 'simplemocha']);
-  grunt.registerTask('default', 'simplemocha');
+  grunt.registerTask(['simplemocha','shell']);
+  grunt.registerTask('default', 'shell');
 };
+

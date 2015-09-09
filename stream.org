@@ -1,0 +1,18 @@
+* stream
+
+- get thread count
+- create array of used threads
+- clean
+- findFiles(callback)
+
+* build process is state-machine
+case 'build unity maybe':
+  ifSpareThread{
+    buildUnityMaybe
+    state += 1;
+  }
+case 'build runner'
+case 'building runner'
+case 'compile runner'
+case 'link runner'
+case 'run runner'
