@@ -1,67 +1,82 @@
 var fs              = require('fs');
 var path            = require('path');
+var Mocha           = require('mocha');
+var prg             = require('./progress.js');
 var testRunner      = require('./buildTestRunner.js');
 var spawner         = require('./spawner.js');
 var cfg             = require("./gcc.js").data();
 var clc             = require('cli-color');
 var sys             = require('sys');
 var dbg             = require('./debug.js');
-var procs           = 0;
+var report          = require('./report');
+var mocha           = new Mocha();
+var testFileSize    = 0;
 
-function buildTests(basename){
-  var dirs   = fs.readdirSync('/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/');
+exports.runTests = function(){
+  var filesProcessed = 0;
+  cleanSync();
+  var files = findTests(function(base, count){
+    if(dbg.flags.log_build){
+      console.log('building', base);
+    }
+    prg.tick();
+    mocha.addFile(
+      path.join(cfg.compiler.build_path, base + '.js'));
+    buildTestsSync(base);
+    runGcc(base, count, function(){
+      prg.tick();
+      report.run(base, function(){
+      });
+
+      filesProcessed += 1;
+      if(filesProcessed == testFileSize){
+        mocha.
+          ui('tdd').
+          reporter('mochawesome').
+          run(function(failures){
+          process.on('exit', function () {
+            process.exit(failures);
+          });
+        });
+      };
+    });
+  });
+  if(dbg.flags.log_timers){
+    console.timeEnd(name);
+  };
+};
+
+function buildTestsSync(basename){
+  var dirs = fs.readdirSync('/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/');
   testRunner.build(cfg.compiler.unit_tests_path + basename + '.c',
                    cfg.compiler.build_path + createRunnerName(basename));
 }
 
-function findTests(){
-  files = [];
+function findTests(runtest_cb){
+  var foundCount = 0;
   var dirs = fs.readdirSync(cfg.compiler.unit_tests_path);
-  for(var count = 0; count < dirs.length; count++){
+  var files = [];
+  var count;
+  if(dbg.flags.log_timers){console.time(base);}
+
+  for(count = 0; count < dirs.length; count++){
     if(path.extname(dirs[count]) === '.c'){
       var base = path.basename(dirs[count], '.c');
       if(base.indexOf('test') === 0){
         files.push(base);
+        testFileSize += 1;
       }
     }
   }
-  return files;
-}
 
-function findTest(runtest){
-  files = [];
-  var foundCount = 0;
-  var dirs = fs.readdirSync(cfg.compiler.unit_tests_path);
-  for(var count = 0; count < dirs.length; count++){
-    if(path.extname(dirs[count]) === '.c'){
-      var base = path.basename(dirs[count], '.c');
-      if(base.indexOf('test') === 0){
-        if(dbg.flags.log_timers){
-          console.time(base);
-        }
-        if(dbg.flags.log_build){
-          console.log('finding', base);
-        }
-        runtest(base, foundCount++);
-      }
-    }
+  if(dbg.flags.log_build){console.log('finding', base);}
+  prg.init_bar(testFileSize);
+  for(count = 0; count < testFileSize; count++){
+    runtest_cb(files[count], foundCount++);
   }
 }
 
-exports.runTests = function(report){
-  clean();
-  findTest(function(base, count){
-    if(dbg.flags.log_build){
-      console.log('building', base);
-    }
-    buildTests(base);
-
-    runGcc(base, count);
-
-  });
-};
-
-function runGcc(name, count){
+function runGcc(name, count, reporter){
   var basename = name;
 
   details = [];
@@ -86,7 +101,7 @@ function runGcc(name, count){
       basename + cfg.linker.bin_files.extension);
   details.push(['']);
 //  details.push(basename);
-  spawner.run(details, basename, 0);
+  spawner.run(details, basename, 0, reporter);
 }
 
 function rmDir(dirPath, removeSelf) {
@@ -176,23 +191,25 @@ function unitySource(args) {
   return args;
 }
 
-function clean()
+function cleanSync()
 {
   rmDir(cfg.compiler.build_path, false);
 }
 
-function runBuildReport(build, run){
-  run(report);
+function runMoch(){
+  fs.readdirSync(cfg.compiler.build_path).filter(function(file){
+    return file.substr(-3) === '.js';
+  }).forEach(function(file){
+    mocha.addFile(
+      path.join(cfg.compiler.build_path, file)
+    );
+  });
+
+  mocha.run(function(failures){
+    process.on('exit', function () {
+      process.exit(failures);
+    });
+  });
 }
 
-function build(){
-  if(dbg.flags.log_build){
-  console.log('build')
-  }
-}
-function report(basename) {
-}
-
-runBuildReport(build, this.runTests); //todo
-
-
+this.runTests();

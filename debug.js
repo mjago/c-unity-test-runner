@@ -1,7 +1,7 @@
 var flags = {
   'repeats': 1
   //  , 'showExc':   true
-  //  , 'debug': true
+  //, 'debug': true
   //  , 'scan': true
   //  , 'voidFound': true
   //  , 'count': true
@@ -11,7 +11,7 @@ var flags = {
   //  , log_run: true
   //  , log_clean: true
   //  , log_build: true
-  , log_timers: true
+//  , log_timers: true
 };
 
 exports.trace = flags.trace;

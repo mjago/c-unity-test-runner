@@ -1,34 +1,43 @@
 var sem             = require('semaphore')(2);
 
-exports.run = function (details, basename, runCount){
+exports.run = function (details, basename, runCount, reporter){
 
   sem.take(function() {
 
-    run(details, basename, runCount);
+    run(details, basename, runCount, reporter);
 
     sem.leave();
   });
 };
 
-var clc    = require('cli-color');
-var spawn  = require ('child_process').spawn;
-var fs     = require('fs');
-var report = require('./report');
-var cfg    = require('./gcc.js').data();
-var dbg    = require('./debug.js')
-var run = function (details, basename, runCount){
+var clc      = require('cli-color');
+var spawn    = require ('child_process').spawn;
+var fs       = require('fs');
+var cfg      = require('./gcc.js').data();
+var dbg      = require('./debug.js');
+var prg      = require('./progress.js');
+var killed   = false;
+var firstErr = false;
+
+var run = function (details, basename, runCount, reporter){
   var cmd = details.shift();
   var args = details.shift();
+
+//  console.log('basename', basename);
+//  console.log('runCount', runCount);
+//  console.log('args', args);
+  if(runCount == 1){prg.tick();}
+  if(runCount == 2){prg.tick();}
+  if(runCount == 3){prg.tick();}
   if( ! (details.length >= 1 )){
     if(dbg.flags.log_running){
-      console.log('run', basename);
+//      console.log('run', basename);
     }
   }
 
-//  console.log(cmd, args)
   var myFile = fs.createWriteStream(cfg.compiler.build_path + basename + '.txt');
+//  var errFile = fs.createWriteStream(cfg.compiler.build_path + basename + '.err');
   var child = spawn(cmd, args);
-//  var pid = spawn('grep', ['ssh']).pid;
 
   if(dbg.flags.log_run){
     console.log('', runCount, 'child:', basename);
@@ -37,39 +46,48 @@ var run = function (details, basename, runCount){
   child.stdout.pipe(myFile);//, { end: false });
 
   myFile.on('finish', function() {
-    if(details.length >= 1) {
-      exports.run(details,basename, ++runCount);
+    if(killed){
+      return;
     }
-    else{
-      report.run(myFile, basename);
+    else if(details.length >= 1) {
+      exports.run(details, basename, ++runCount, reporter);
     }
+      else{
+        reporter();
+      }
   });
 
+//  child.on('error', function(data){
+//    console.log('data', data);
+//  });
+
+  child.stderr.on('data', function(data){
+    if(! firstErr){
+      firstErr = true;
+      console.log();
+    }
+    console.log(clc.red((data + '').replace('error:', '\nerror:')));
+    killed = true;
+    child.kill();
+  });
+//  child.on('error', function(data){
+//    console.log('data', data);
+//  });
+  
   child.on('exit', function (data) {
     if( ! (details.length >= 1)) {
-//      myFile.end();
     };
     if(data === 0)
     {
       if(dbg.flags.log_exit){
         console.log(clc.green(runCount, 'exit: ' + data, basename));
       }
-
-//      if(details.length > 1){
-//        exports.run(details,basename);
-//      }
-//      else{
-//        console.timeEnd('async');
-//        report.run(basename);
-////        process.exit(data);
-//      }
     }
     else
     {
       if(dbg.flags.log_exit){
         console.log(clc.red(runCount, 'exit: ' + data, basename));
       }
-//      throw new Error('invalid exit code! \n' + err);
     }
   });
 

@@ -38,8 +38,8 @@ var nl               = '\n',
     pg_op_paren      = ' pg_op_paren = "("'                                                         + nl,
     pg_cl_paren      = ' pg_cl_paren = ")"'                                                         + nl,
     pg_int           = ' pg_int = "int"'                                                            + nl,
-    pg_char          = ' pg_char = [a-zA-Z0-9_]'                                                    + nl,
-    pg_any           = ' pg_any = [a-zA-Z0-9_.,\t ]'                                                + nl,
+    pg_char          = ' pg_char = [a-zA-Z0-9_/\\-]'                                                + nl,
+    pg_any           = ' pg_any = [a-zA-Z0-9_?!.,\t ]'                                              + nl,
     pg_char_no_col   = ' pg_char_no_col = (pg_char+ / " ")'                                         + nl,
     pg_test_prefix   = ' pg_test_prefix = "test" / "Test"'                                          + nl,
     pg_name          = ' pg_name = pg_test_prefix pg_char+'                                         + nl,
@@ -65,21 +65,24 @@ var nl               = '\n',
     pg_c_ext         = ' pg_c_ext = "." ("c" / "C")'                                                + nl,
     pg_rpt_ln        = ' pg_rpt_ln = nonzero_digit digit* '                                         + nl,
     pg_rpt_name      = ' pg_rpt_name = pg_test_prefix + pg_char+'                                   + nl,
-    pg_rpt_sht       = ' pg_rpt_sht = pg_rpt_name pg_c_ext pg_col pg_rpt_ln pg_col pg_test_prefix pg_char+ pg_col pg_passfail'  + nl,
-    pg_rpt_lng       = ' pg_rpt_lng = pg_rpt_sht inner_msg* pg_rpt_sht \n inner_msg = ( !pg_rpt_sht ( src_char / "\\n" )) '     + nl,
-    pg_rpt           = ' pg_rpt = pg_rpt_lng / pg_rpt_sht'                                                                      + nl,
-    pg_rpt_footer    = ' pg_rpt_footer = digit+ " Tests " digit+ " Failures " digit+ " Ignored" pg_nl_seq'                      + nl,
-    pg_gdefs         = pg_ws + pg_min_ws + pg_all_ws,
-    pg_fdefs         = pg_char + pg_void + pg_int + pg_op_paren + pg_cl_paren +
-      pg_test_prefix + pg_name + pg_params + pg_body,
-    pg_idefs         = pg_linclude + pg_ginclude + pg_hinclude + pg_includelname +
-      pg_includegname + pg_sp_mk + pg_fnchar + pg_op_an_br + pg_cl_an_br;
+    pg_rpt_ln_msg    = ' pg_rpt_ln_msg = ( !pg_rpt_sht ( src_char / "\\n" ))'                       + nl,
+    pg_rpt_lng       = ' pg_rpt_lng = pg_rpt_sht pg_rpt_ln_msg* pg_rpt_sht  '                       + nl,
+    pg_rpt           = ' pg_rpt = pg_rpt_lng / pg_exp_was_msg / pg_exp_was / pg_exp / pg_rpt_sht'   + nl,
+    pg_rpt_sht       = ' pg_rpt_sht = pg_rpt_name pg_c_ext pg_col pg_rpt_ln pg_col pg_test_prefix pg_char+ pg_col pg_passfail'                       + nl,
+    pg_rpt_footer    = ' pg_rpt_footer = digit+ " Tests " digit+ " Failures " digit+ " Ignored" pg_nl_seq'                                           + nl,
+    pg_exp_was       = ' pg_exp_was = pg_rpt_sht ": " ( !"Expected " [ \'.0-9a-zA-Z_-] )*  "Expected " [\'.0-9a-zA-Z_-]* " Was " [\'.0-9a-zA-Z_-]* ' + nl,
+    pg_exp           = ' pg_exp = pg_rpt_sht ": " [ \t0-9a-zA-Z_.,;:"£$%^&*()?!+={}\\[\\]"-]*'                                                       + nl,
+    pg_exp_was_msg   =
+      ' pg_exp_was_msg = pg_rpt_sht ": " ( !"Expected " [ \'.0-9a-zA-Z_-] )*  "Expected " [\'.0-9a-zA-Z_-]* " Was " ( !". " [\'.0-9a-zA-Z_-])* ". " src_char*' + nl;
+
 
 var pg_defs =
       pg_function        +
       pg_include         +
       pg_rpt             +
       pg_rpt_footer      +
+      pg_exp_was         +
+      pg_exp             +
       src_char           +
       pg_ws              +
       pg_col             +
@@ -124,17 +127,13 @@ var pg_defs =
       pg_rpt_ln          +
       pg_rpt_name        +
       pg_rpt_lng         +
+      pg_rpt_ln_msg      +
+      pg_exp_was_msg     +
       pg_rpt_sht;
-//      +
-//      pg_rpt_lng;
 
 buildPgScript = function() {
   return pg_defs;
 };
-
-//buildPgScript = function() {
-//  return pg_gdefs + pg_function + pg_fdefs + pg_include + pg_idefs;
-//};
 
 buildParser = function(string){
 //  return PEG.buildParser(string,parserOptions);
@@ -156,8 +155,7 @@ exports.generateParserSource = function(str, filename){
   fs.writeFileSync(filename, 'module.exports = ' + PEG.buildParser(str, parserOptions), 'utf-8');
 };
 
-//this.generateParserSource(buildPgScript(), pegFilename);
-//console.log('here');
+this.generateParserSource(buildPgScript(), pegFilename);
 
 describe('test setup', function() {
   it('should assert 1', function(){
@@ -190,7 +188,6 @@ describe('Check single digit parsing: ', function() {
     assert.isFalse(parse(p, '99'));
   });
   it('should fail for single letter', function () {
-    //    showExc = true;
     assert.isFalse(parse(p, 'a'));
     assert.isFalse(parse(p, 'z'));
   });
@@ -367,96 +364,114 @@ describe('Include Header prefix parsing', function() {
 
 describe('Local header parsing', function() {
 
-  //  var p = buildParser('sm =  pg_sp_mk pg_all_ws pg_char+  pg_all_ws pg_sp_mk ' + pg_sp_mk + pg_all_ws + pg_char);
-  var p = buildParser(' p = pg_sp_mk pg_all_ws pg_fnchar+  pg_all_ws pg_sp_mk' + nl + pg_sp_mk + pg_fnchar + pg_gdefs);
+  var p = buildParser(' p = pg_sp_mk pg_all_ws pg_fnchar+  pg_all_ws pg_sp_mk' + nl + pg_sp_mk + pg_fnchar + pg_defs);
 
   it('should parse a name in speech marks', function(){
-    assert.deepEqual(['"',[],['a','b','c'],[],'"'],parse(p, '"abc"'));
+    assert.deepEqual('abc',parse(p, '"abc"')[2].join(''));
   });
 
   it('should parse a name in speech marks with proceeding whitespace', function(){
-    assert.deepEqual(['"',[' '],['a','b','c'],[],'"'],parse(p, '" abc"'));
+    assert.deepEqual('abc',parse(p, '" abc"')[2].join(''));
   });
 
   it('should parse a name in speech marks with trailing whitespace', function(){
-    assert.deepEqual(['"',[' '],['a','b','c'],[' ',' '],'"'],parse(p, '" abc  "'));
+    assert.deepEqual('abc',parse(p, '" abc  "')[2].join(''));
   });
 
   it('should parse a filename in speech marks', function(){
-    assert.deepEqual(['"',[' '],['f','i','l','e','n','a','m','e','.','h'],[' ',' '],'"'],parse(p, '" filename.h  "'));
+    assert.deepEqual('filename.h',parse(p, '" filename.h  "')[2].join(''));
   });
 });
 
 describe('Local header  parsing final', function() {
 
-  //  var p = buildParser('sm =  pg_sp_mk pg_all_ws pg_char+  pg_all_ws pg_sp_mk ' + pg_sp_mk + pg_all_ws + pg_char);
-  var p = buildParser(pg_includelname + nl + pg_sp_mk + pg_fnchar + pg_gdefs);
+  var p = buildParser(pg_includelname + nl + pg_sp_mk + pg_fnchar + pg_defs);
 
   it('should parse a name in speech marks', function(){
-    assert.deepEqual(['"',[],['a','b','c'],[],'"'],parse(p, '"abc"'));
+    assert.deepEqual('abc', parse(p, '"abc"')[2].join(''));
   });
 
   it('should parse a name in speech marks with proceeding whitespace', function(){
-    assert.deepEqual(['"',[' '],['a','b','c'],[],'"'],parse(p, '" abc"'));
+    assert.deepEqual('abc', parse(p, '" abc"')[2].join(''));
   });
 
   it('should parse a name in speech marks with trailing whitespace', function(){
-    assert.deepEqual(['"',[' '],['a','b','c'],[' ',' '],'"'],parse(p, '" abc  "'));
+    assert.deepEqual('abc', parse(p, '" abc  "')[2].join(''));
   });
 
   it('should parse a filename in speech marks', function(){
-    assert.deepEqual(['"',[' '],['f','i','l','e','n','a','m','e','.','h'],[' ',' '],'"'],parse(p, '" filename.h  "'));
+    assert.deepEqual('filename.h', parse(p, '" filename.h  "')[2].join(''));
   });
 });
 
 describe('Global header parsing', function() {
 
-  //  var p = buildParser('sm =  pg_sp_mk pg_all_ws pg_char+  pg_all_ws pg_sp_mk ' + pg_sp_mk + pg_all_ws + pg_char);
-  var p = buildParser(' p = pg_op_an_br pg_all_ws pg_fnchar+  pg_all_ws pg_cl_an_br' + nl + pg_op_an_br + pg_cl_an_br + pg_fnchar + pg_gdefs);
+  var p = buildParser(' p = pg_op_an_br pg_all_ws pg_fnchar+  pg_all_ws pg_cl_an_br' + nl + pg_op_an_br + pg_cl_an_br + pg_fnchar + pg_defs);
 
   it('should parse a name in angle brackets', function(){
-    assert.deepEqual(['<',[],['a','b','c'],[],'>'],parse(p, '<abc>'));
+    assert.deepEqual('<', parse(p, '<abc>')[0]);
+    assert.deepEqual('abc', parse(p, '<abc>')[2].join(''));
+    assert.deepEqual('>', parse(p, '<abc>')[4]);
   });
 
   it('should parse a name in angle brackets with proceeding whitespace', function(){
-    assert.deepEqual(['<',[' '],['a','b','c'],[],'>'],parse(p, '< abc>'));
+    assert.deepEqual('<', parse(p,   '< abc>')[0]);
+    assert.deepEqual('abc', parse(p, '< abc>')[2].join(''));
+    assert.deepEqual('>', parse(p,   '< abc>')[4]);
   });
 
   it('should parse a name in angle brackets with trailing whitespace', function(){
-    assert.deepEqual(['<',[' '],['a','b','c'],[' ',' '],'>'],parse(p, '< abc  >'));
+    assert.deepEqual('<', parse(p,   '< abc  >')[0]);
+    assert.deepEqual('abc', parse(p, '< abc  >')[2].join(''));
+    assert.deepEqual('>', parse(p,   '< abc  >')[4]);
   });
 
   it('should parse a filename in angle brackets', function(){
-    assert.deepEqual(['<',[' '],['f','i','l','e','n','a','m','e','.','h'],[' ',' '],'>'],parse(p, '< filename.h  >'));
+    assert.deepEqual('<', parse(p,   '< filename.h  >')[0]);
+    assert.deepEqual('filename.h', parse(p, '< filename.h  >')[2].join(''));
+    assert.deepEqual('>', parse(p,   '< filename.h  >')[4]);
   });
 });
 
 describe('Global header parsing final', function() {
 
-  //  var p = buildParser('sm =  pg_sp_mk pg_all_ws pg_char+  pg_all_ws pg_sp_mk ' + pg_sp_mk + pg_all_ws + pg_char);
-  var p = buildParser(pg_includegname + nl + pg_op_an_br + pg_cl_an_br + pg_fnchar + pg_gdefs);
+  var p = buildParser(pg_includegname + nl + pg_op_an_br + pg_cl_an_br + pg_fnchar + pg_defs);
 
   it('should parse a name in angle brackets', function(){
-    assert.deepEqual(['<',[],['a','b','c'],[],'>'],parse(p, '<abc>'));
+    assert.deepEqual('<',   parse(p, '<abc>')[0]);
+    assert.deepEqual('abc', parse(p, '<abc>')[2].join(''));
+    assert.deepEqual('>',   parse(p, '<abc>')[4]);
   });
 
-  it('should parse a name in angle brackets with proceeding whitespace', function(){
-    assert.deepEqual(['<',[' '],['a','b','c'],[],'>'],parse(p, '< abc>'));
+  it('should parse a name in angle brackets', function(){
+    assert.deepEqual('<',   parse(p, '< abc>')[0]);
+    assert.deepEqual('abc', parse(p, '< abc>')[2].join(''));
+    assert.deepEqual('>',   parse(p, '< abc>')[4]);
   });
 
-  it('should parse a name in angle brackets with trailing whitespace', function(){
-    assert.deepEqual(['<',[' '],['a','b','c'],[' ',' '],'>'],parse(p, '< abc  >'));
+  it('should parse a name in angle brackets', function(){
+    assert.deepEqual('<',   parse(p, '< abc>')[0]);
+    assert.deepEqual('abc', parse(p, '< abc>')[2].join(''));
+    assert.deepEqual('>',   parse(p, '< abc>')[4]);
   });
 
-  it('should parse a filename in angle brackets', function(){
-    assert.deepEqual(['<',[' '],['f','i','l','e','n','a','m','e','.','h'],[' ',' '],'>'],parse(p, '< filename.h  >'));
+  it('should parse a name in angle brackets', function(){
+    assert.deepEqual('<',   parse(p, '< abc  >')[0]);
+    assert.deepEqual('abc', parse(p, '< abc  >')[2].join(''));
+    assert.deepEqual('>',   parse(p, '< abc  >')[4]);
+  });
+
+  it('should parse a name in angle brackets', function(){
+    assert.deepEqual('<',   parse(p, '< filename.h  >')[0]);
+    assert.deepEqual('filename.h', parse(p, '< filename.h  >')[2].join(''));
+    assert.deepEqual('>',   parse(p, '< filename.h  >')[4]);
   });
 });
 
 describe('Parsing global and local includes', function() {
   var p = buildParser('pg_includename = pg_includelname / pg_includegname' + nl +
                       pg_includelname + pg_includegname +
-                      pg_fnchar + pg_gdefs + pg_op_an_br + pg_cl_an_br + pg_sp_mk);
+                      pg_fnchar + pg_defs + pg_op_an_br + pg_cl_an_br + pg_sp_mk);
 
   it('should parse a local filename', function(){
     assert.deepEqual(['"',[],['a','b','c','.','h'],[],'"'],parse(p, '"abc.h"'));
@@ -484,25 +499,37 @@ describe('Parsing global and local includes', function() {
 });
 
 describe('Parsing global and local includes final', function() {
-  var p = buildParser(pg_include  + pg_gdefs + pg_fdefs + pg_fdefs + pg_idefs);
+  var p = buildParser('a = pg_include ' + nl + pg_defs);
 
   it('should parse a local filename', function(){
-    //    assert.deepEqual(['"',[],['a','b','c','.','h'],[],'"'],parse(p, '"sss"'));
+    assert.deepEqual('#include', parse(p, '#include "abc.h"')[1]);
+    assert.deepEqual('abc.h'   , parse(p, '#include "abc.h"')[3][2].join(''));
+    assert.deepEqual('"'       , parse(p, '#include "abc.h"')[3][0]);
+    assert.deepEqual('"'       , parse(p, '#include "abc.h"')[3][4]);
   });
 });
 
 describe('Parse Test Results String', function() {
+
   it('should parse a test filename with lower case extension', function(){
     var p = buildParser('pg_rpt_name = pg_name + pg_c_ext' + nl + pg_test_prefix + pg_name + pg_char + pg_c_ext);
-    assert.deepEqual([[['test', ['u','n','i','t','y','_','R','u','n','n','e','r']]],['.','c']], parse(p, 'testunity_Runner.c'));
-    assert.deepEqual([[['test', ['_','z']]],['.','c']], parse(p, 'test_z.c'));
-    assert.deepEqual([[['test', ['_','8']]],['.','c']], parse(p, 'test_8.c'));
+    var parsed = parse(p, 'testunity_Runner.c');
+
+    assert.deepEqual('test',  parse(p, 'testunity_Runner.c')[0][0][0]);
+    assert.deepEqual('unity_Runner', parse(p, 'testunity_Runner.c')[0][0][1].join(''));
+    assert.deepEqual('.c', parse(p, 'testunity_Runner.c')[1].join(''));
+    assert.deepEqual('_z', parse(p, 'test_z.c')[0][0][1].join(''));
+    assert.deepEqual('_8', parse(p, 'test_8.c')[0][0][1].join(''));
   });
 
   it('should parse a test filename with upper case extension', function(){
     var p = buildParser('pg_rpt_name = pg_name + pg_c_ext' + nl + pg_test_prefix + pg_name + pg_char + pg_c_ext);
-    assert.deepEqual([[['test', ['u','n','i','t','y','_','R','u','n','n','e','r']]],['.','C']], parse(p, 'testunity_Runner.C'));
-    assert.deepEqual([[['test', ['a']]],['.','C']], parse(p, 'testa.C'));
+    assert.deepEqual('.C', parse(p, 'testunity_Runner.C')[1].join(''));
+  });
+
+  it('should parse a test filename with forward slash', function(){
+    var p = buildParser('pg_rpt_name = pg_name + pg_c_ext' + nl + pg_test_prefix + pg_name + pg_char + pg_c_ext);
+    assert.deepEqual('.C', parse(p, 'testunity_Runner.C')[1].join(''));
   });
 
   it('should parse a test a single digit line number', function(){
@@ -543,19 +570,17 @@ describe('Parse Test Results String', function() {
 
   it('should parse short report line', function(){
     var p = buildParser(
-      'pg_rpt = pg_rpt_sht ' + nl
-        + pg_rpt_sht + digit + pg_char + pg_test_prefix
-        + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln
-        + nonzero_digit + pg_passfail);
-    assert.deepEqual([[['test'],['u','n','i','t','y','_','R','u','n','n','e','r']],
-                      ['.','c'],':',['9',['4']],':','Test',['_','T','r','u','e'],':','PASS'],
-                     parse(p, 'testunity_Runner.c:94:Test_True:PASS'));
+      'a = pg_rpt ' + nl + pg_defs);
 
-    assert.deepEqual([[['test'],['1']],['.','C'],':',['1',[]],':','Test',['_','N','i','l'],':','FAIL'],
-                     parse(p, 'test1.C:1:Test_Nil:FAIL'));
-
-    assert.deepEqual([[['test'],['1']],['.','C'],':',['1',[]],':','Test',['_','N','i','l'],':','FAIL'],
-                     parse(p, 'test1.C:1:Test_Nil:FAIL'));
+    parsed = parse(p, 'testunity_Runner.c:94:Test_True:PASS');
+    assert.deepEqual('test', parsed[0][0][0]);
+    assert.deepEqual('unity_Runner', parsed[0][1].join(''));
+    assert.deepEqual('.c', parsed[1].join(''));
+    assert.deepEqual('94', parsed[3].join(''));
+    assert.deepEqual('94', parsed[3].join(''));
+    assert.deepEqual('Test', parsed[5]);
+    assert.deepEqual('_True', parsed[6].join(''));
+    assert.deepEqual('PASS', parsed[8]);
   });
 });
 
@@ -577,30 +602,9 @@ describe('Parse Test Results Known Fail String', function() {
 
   it('should parse first part of message', function(){
     var p = buildParser('pg_rpt_msg = pg_any+ pg_col pg_passfail' + nl + pg_any + pg_col + pg_passfail);
-    //    assert.deepEqual('ab', parse(p, 'ab:PASS'));
+    assert.deepEqual('ab', parse(p, 'ab:PASS')[0].join(''));
   });
 
-
-  //  it('should parse whole message', function(){
-  //    var str =
-  //          //          'pg_rpt_exfail = pg_rpt_name pg_c_ext pg_col pg_rpt_ln pg_col pg_test_prefix pg_char+ pg_col pg_passfail + " " pg_any* pg_col pg_passfail';
-  //          //          'a = pg_rpt_sht pg_col " "'
-  //          //          'a = pg_rpt_sht pg_col " "' + nl
-  //          //          'a = pg_rpt_sht pg_col pg_ws [a-zA-Z0-9 \t] [a-zA-Z0-9 \t] [a-zA-Z0-9 \t] pg_rpt_sht' + nl
-  //          //          'aaaa = pg_rpt_sht aaaa pg_rpt_sht / ": " [a-su-zA-SU-Z \t]+' + nl
-  //          'aaaa = pg_rpt_sht ": " ([a-st-zA-Z ]+ &pg_rpt_sht)' + nl
-  //    //            'a = pg_rpt_sht pg_col pg_rpt_sht' + nl
-  //          + pg_rpt_sht + digit + pg_char + pg_test_prefix
-  //          + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln
-  //          + nonzero_digit + pg_passfail + pg_any + pg_ws;
-  //    var match =
-  //          //          'testunity_Runner.c:3357:Test_NotEqualDoubleArraysExpectedNull:PASS: ';
-  //          //          'testunity_Runner.c:3357:Test_NotEqualDoubleArraysExpectedNull:FAIL: testunity_Runner.c:3348:Test_NotEqualDoubleArraysExpectedNull:PASS';
-  //          //          'testunity_Runner.c:3357:Test_NotEqualDoubleArraysExpectedNull:FAIL: abc def ghi jkl mno pqr suv wxy zAB CDE FGH IJK LMN OPQ RSU VWXYZ testunity_Runner.c:3348:Test_NotEqualDoubleArraysExpectedNull:PASS';
-  //          //    var p = buildParser(str); //Expected pointer to be NUL
-  //          //    assert.deepEqual([] , parse(p, match));
-  //          //  });
-  //
   it('should lookahead', function(){
     var p = buildParser('some_body = obr ( !cbr (all / nl) )* cbr   \n\
                         obr = "("                                   \n\
@@ -609,75 +613,20 @@ describe('Parse Test Results Known Fail String', function() {
                         nl  = "\\n"                                 \n\
                         ', {trace: true});
     assert.isArray(parse(p, '(fjsdkalfsaj;encldd;skl\'e[]\')'));
-    });
+  });
 
   it('should lookahead  2', function(){
-
-//    var p = buildParser('a = t1:pg_rpt_sht im:inner_msg* t2:pg_rpt_sht  {return [t1[0][1][0], t2[1][1][0], t2[8], im.join("") ]  } \n inner_msg = ( !pg_rpt_sht ( src_char / "\\n" ))  ' + nl
-//                        + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
-//                        pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
-//                        digit + src_char + nl
-//                        , {trace: true});
-//
-//    var p = buildParser('a = t1:pg_rpt_sht im:inner_msg* t2:pg_rpt_sht  {return [t1[0][1][0], t2[1][1][0], t2[8], im.join("") ]  } \n inner_msg = ( !pg_rpt_sht ( src_char / "\\n" ))  ' + nl
-//                        + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
-//                        pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
-//                        digit + src_char + nl
-//                        , {trace: true});
-//
-//    var p = buildParser('rpt = rpt_lng / pg_rpt_sht \n rpt_lng = pg_rpt_sht inner_msg* pg_rpt_sht \n inner_msg = ( !pg_rpt_sht ( src_char / "\\n" ))  ' + nl
-//                        + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
-//                        pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
-//                        digit + src_char + nl
-//                        , {trace: true});
-
-    var p = buildParser(
-      pg_rpt_lng + nl
-        + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
-        pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
-        digit + src_char + nl
-      , {trace: true});
-
-    //                        ( !")"  (. / "\\n") )* ")" ', {trace: true});
+    var p = buildParser('a = pg_rpt_lng' + nl + pg_defs);
+//        + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
+//        pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
+//        digit + src_char + nl
+//      , {trace: true});
     assert.isArray(parse(p, 'testa.c:1:Testb:FAIL: atesta.c:2:Testb:FAIL'));
-    assert.isArray(parse(p, 'testunity_Runner.c:3483:testNotEqualDoubleArraysInf:FAIL: Element 1 Values Not Within Delta testunity_Runner.c:3474:testNotEqualDoubleArraysInf:PASS'));
-
-
-
-
-    var p = buildParser(
-      pg_rpt_lng + nl
-        + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
-        pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
-        digit + src_char + nl
-      , {trace: true});
-
-    var p = buildParser(pg_rpt_lng + pg_defs,{trace: true});
-
-    var f = fs.readFileSync('/Users/martyn/_unity_quick_setup/dev/Unity/test/build/testunity.txt');
-    var ary = f.toString().split('\n');
-    var good = 0;
-    var failures = [];
-    var parsed   = []
-    for(var count = 0; count < ary.length; count++){
-      parsed[count] = parse(p, ary[count]);
-      console.log(parsed[count]);
-      if(parsed !== false){
-        console.log(++good, 'parsed a good one!', 'line:', count + 1);
-      }
-      else{
-        failures.push(count + 1);
-      }
-    }
-
-    console.log('the following lines failed to parse:');
-    for(var count = 0; count < failures.length; count++){
-      console.log('line ', failures[count] + '');
-      console.log(parsed[count]);
-    };
-    console.log(ary[ary.length - 5]);
+    assert.isArray(
+      parse(p,'testunity_Runner.c:3483:testNotEqualDoubleArraysInf:FAIL: Element 1 Values Not Within Delta testunity_Runner.c:3474:testNotEqualDoubleArraysInf:PASS'));
   });
 });
+
 
 describe('Parse Rpt Footer', function(){
   var p = buildParser('a = pg_rpt_footer ' + nl + pg_rpt_footer + digit + pg_nl_seq);
@@ -690,149 +639,520 @@ describe('Parse Rpt Footer', function(){
   });
 });
 
-describe('Parse Test Fails as Expected', function() {
+describe('Parse Test Fails as Expected:', function() {
   var p = buildParser(
     'a =  pg_rpt_lng / pg_rpt_sht ' + nl
-      + pg_defs
-//    pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln+
-//      pg_test_prefix + pg_char + pg_passfail + nonzero_digit +
-//      digit + src_char + nl
-    , {trace: true});
-  var scr = 'test_z_Runner.c:116:Test_NotVanilla:FAIL: Expression Evaluated To FALSEtest_z_Runner.c:113:Test_NotVanilla:PASS';
-//  var scr = 'test_z_Runner.c:1175:Test_INT32sNotWithinDelta:FAIL: Values Not Within Delta 1 Expected -3 Was 1test_z_Runner.c:1172:Test_INT32sNotWithinDelta:FAIL';
+      + pg_defs, {trace: true});
+
   it('should pass since test failed as expected', function(){
-    var parsed = parse(p, scr)
-    assert.deepEqual('test' , parsed);
+    var scr =
+          'test_z_Runner.c:1175:Test_INT32sNotWithinDelta:FAIL: Values Not Within Delta 1 Expected -3 Was 1test_z_Runner.c:1172:Test_INT32sNotWithinDelta:FAIL';
+    var parsed = parse(p, scr);
+    assert.isArray(parsed);
+    assert.deepEqual('test' , parsed[0][0][0][0]);
+  });
+});
+
+describe('Parse Expected - Was (breakdown):', function() {
+  var p = buildParser(
+    'a =  ": Expected " [0-9a-zA-Z_-]* " Was " [0-9a-zA-Z_]*' + nl + pg_defs);
+  var scr = ': Expected -1 Was 20';
+  var parsed = parse(p, scr);
+  it('should extract Expected', function(){
+    assert.deepEqual(': Expected ', parsed[0]);
+  });
+
+  it('should extract Was', function(){
+    assert.deepEqual(' Was ', parsed[2]);
+  });
+
+  it('should extract Expected value', function(){
+    assert.deepEqual('-1', parsed[1].join(''));
+  });
+
+  it('should extract Was value', function(){
+    assert.deepEqual('20', parsed[3].join(''));
+  });
+});
+
+describe('Parse Expected FALSE Was TRUE final:', function() {
+  var p = buildParser('a = pg_exp_was ' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:31:test_TEST_ASSERT_FALSE:FAIL: Expected FALSE Was TRUE';
+  it('should extract test', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+  });
+
+  it('should extract Expected', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('Expected ', parsed[3]);
+  });
+
+  it('should extract FALSE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('FALSE', parsed[4].join(''));
+  });
+
+  it('should extract Was', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual(' Was ', parsed[5]);
+  });
+
+  it('should extract TRUE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('TRUE', parsed[6].join(''));
+  });
+});
+
+describe('Parse Expected TRUE Was FALSE final:', function() {
+  var p = buildParser('a = pg_exp_was ' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:31:test_TEST_ASSERT_FALSE:FAIL: Expected TRUE Was FALSE';
+  var parsed = parse(p, scr);
+
+  it('should extract TRUE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('TRUE', parsed[4].join(''));
+  });
+
+  it('should extract FALSE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('FALSE', parsed[6].join(''));
+  });
+});
+
+describe('Parse Expected Was Integers final:', function() {
+  var p = buildParser('a = pg_exp_was ' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:46:test_TEST_ASSERT_EQUAL_INT:FAIL: Expected 123 Was 124';
+  var parsed = parse(p, scr);
+
+  it('should extract 123', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('123', parsed[4].join(''));
+  });
+
+  it('should extract 124', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('124', parsed[6].join(''));
+  });
+});
+
+describe('Parse Expected Was negative Integers final:', function() {
+  var p = buildParser('a = pg_exp_was ' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:50:test_TEST_ASSERT_EQUAL_INT8__0:FAIL: Expected -1 Was -2';
+  var parsed = parse(p, scr);
+
+  it('should extract -1', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('-1', parsed[4].join(''));
+  });
+
+  it('should extract -2', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('-2', parsed[6].join(''));
+  });
+});
+
+describe('Parse Expected Was hex numbers final:', function() {
+  var p = buildParser('a = pg_exp_was ' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:118:test_ASSERT_EQUAL_HEX64:FAIL: Expected 0x000000000000FFFE Was 0x000000000000FFFF';
+  var parsed = parse(p, scr);
+
+  it('should extract 0x000000000000FFFE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('0x000000000000FFFE', parsed[4].join(''));
+  });
+
+  it('should extract 0x000000000000FFFF', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('0x000000000000FFFF', parsed[6].join(''));
+  });
+});
+
+describe('Parse Expected FALSE Was TRUE as report parse:', function() {
+  var p = buildParser('a = pg_rpt ' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:31:test_TEST_ASSERT_FALSE:FAIL: Expected FALSE Was TRUE';
+  it('should extract test', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+  });
+
+  it('should extract Expected', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('Expected ', parsed[3]);
+  });
+
+  it('should extract FALSE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('FALSE', parsed[4].join(''));
+  });
+
+  it('should extract Was', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual(' Was ', parsed[5]);
+  });
+
+  it('should extract TRUE', function(){
+    var parsed = parse(p, scr);
+    assert.deepEqual('TRUE', parsed[6].join(''));
+  });
+});
+
+describe('Parse Assert Unless:', function() {
+  var p = buildParser('a = pg_exp' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:28:test_TEST_ASSERT_UNLESS:FAIL: Expression Evaluated To TRUE';
+  var parsed = parse(p, scr);
+
+  it('should extract test', function(){
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+  });
+
+  it('should extract FAIL', function(){
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('FAIL', parsed[0][8]);
+  });
+
+  it('should extract message', function(){
+    assert.isArray(parsed);
+    assert.deepEqual('Expression Evaluated To TRUE', parsed[2].join(''));
   });
 });
 
 
+describe('Parse Assert Unless final:', function() {
+  var p = buildParser('a = pg_rpt' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:28:test_TEST_ASSERT_UNLESS:FAIL: Expression Evaluated To TRUE';
 
-  //
-  //  it('should parse a local filename with preceding whitespace', function(){
-  //    assert.deepEqual(['"',[' '],['a','b','c','.','h'],[],'"'],parse(p, '" abc.h"'));
-  //  });
-  //
-  //  it('should parse a local filename with trailing whitespace', function(){
-  //    assert.deepEqual(['"',[],['a','b','c','.','h'],[' '],'"'],parse(p, '"abc.h "'));
-  //  });
-  //
-  //  it('should parse a global filename', function(){
-  //    assert.deepEqual(['<',[],['a','b','c','.','h'],[],'>'],parse(p, '<abc.h>'));
-  //  });
-  //
-  //  it('should parse a global filename with preceding whitespace', function(){
-  //    assert.deepEqual(['<',[' '],['a','b','c','.','h'],[],'>'],parse(p, '< abc.h>'));
-  //  });
-  //
-  //  it('should parse a global filename with trailing whitespace', function(){
-  //    assert.deepEqual(['<',[],['a','b','c','.','h'],[' '],'>'],parse(p, '<abc.h >'));
-  //  });
+  var parsed = parse(p, scr);
+  it('should extract test', function(){
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+  });
 
-  //  it('should parse a #included filename with proceeding whitespace', function(){
-  //    assert.deepEqual(['"',[' ',' ',' '],['a','b','c'],[],'"'],parse(p, '"   abc"'));
-  //  });
-  //
-  //  it('should parse a #included filename with proceeding whitespace', function(){
-  //    assert.deepEqual(['"',[' ',' ',' '],['a','b','c'],[],'"'],parse(p, '"   abc"'));
-  //  });
-  //
-  //  it('should parse a #included filename with proceeding whitespace', function(){
-  //    assert.deepEqual(['"',[' ',' ',' ',' '],['a','b','c'],[],'"'],parse(p, '"    abc"'));
-  //  });
+  it('should extract FAIL', function(){
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('FAIL', parsed[0][8]);
+  });
 
-//describe('filename in speech marks parsing', function() {
-//
-//  var p = buildParser('sm = pg_includelname  ' + pg_sp_mk + pg_all_ws + pg_includelname + pg_char);
-//
-//  it('should parse a local include filename', function(){
-//    assert.deepEqual(['"', [], ['a', 'b', 'c'],[], '"'],parse(p, '"abc"'));
+  it('should extract message', function(){
+    assert.isArray(parsed);
+    assert.deepEqual('Expression Evaluated To TRUE', parsed[2].join(''));
+  });
+});
+
+describe('filename in speech marks parsing', function() {
+
+  var p = buildParser('sm = pg_includelname  ' + nl + pg_defs);
+
+  it('should parse a local include filename', function(){
+    assert.deepEqual('abc', parse(p, '"abc"')[2].join(''));
+  });
+
+  it('should parse a local include filename with proceeding whitespace', function(){
+    assert.deepEqual('abc', parse(p, '"  abc"')[2].join(''));
+  });
+});
+
+describe('Include Header Local File Parsing:', function() {
+
+  var p = buildParser('a = pg_linclude ' + nl + pg_defs);
+
+  it('should parse local header', function() {
+    assert.deepEqual('#include', parse(p, '#include "name"')[1]);
+    assert.deepEqual('"', parse(p, '#include "name"')[3][0]);
+    assert.deepEqual('name', parse(p, '#include "name"')[3][2].join(''));
+    assert.deepEqual('name', parse(p, '  #include "name"')[3][2].join(''));
+    assert.deepEqual('name', parse(p, '  #include " name"')[3][2].join(''));
+    assert.deepEqual('name', parse(p, '  #include "  name  "')[3][2].join(''));
+    assert.deepEqual('"', parse(p, '#include "name"')[3][4]);
+  });
+});
+
+describe('Include Header Global File Parsing:', function() {
+
+  var p = buildParser('a = pg_ginclude ' + nl + pg_defs);
+
+  it('should parse global header', function() {
+    assert.deepEqual('#include', parse(p, '#include <name>')[1]);
+    assert.deepEqual('#include', parse(p, '#include < name>')[1]);
+    assert.deepEqual('#include', parse(p, '#include  < name >')[1]);
+    assert.deepEqual('<', parse(p, '#include <name>')[3][0]);
+    assert.deepEqual('>', parse(p, '#include <name>')[3][4]);
+  });
+});
+
+describe('Include Combined Global and Local Include File Parsing:', function() {
+  var p = buildParser('a= pg_include ' + nl + pg_defs);
+
+  it('should parse local header', function() {
+    assert.deepEqual('#include', parse(p, '#include "name"')[1]);
+    assert.deepEqual('"', parse(p, '#include "name"')[3][0]);
+    assert.deepEqual('name', parse(p, '#include "name"')[3][2].join(''));
+    assert.deepEqual('name', parse(p, '  #include "name"')[3][2].join(''));
+    assert.deepEqual('name', parse(p, '  #include " name"')[3][2].join(''));
+    assert.deepEqual('name', parse(p, '  #include "  name  "')[3][2].join(''));
+    assert.deepEqual('"', parse(p, '#include "name"')[3][4]);
+  });
+
+  it('should parse global header', function() {
+    assert.deepEqual('#include', parse(p, '#include <name>')[1]);
+    assert.deepEqual('#include', parse(p, '#include < name>')[1]);
+    assert.deepEqual('#include', parse(p, '#include  < name >')[1]);
+    assert.deepEqual('<', parse(p, '#include <name>')[3][0]);
+    assert.deepEqual('>', parse(p, '#include <name>')[3][4]);
+  });
+});
+
+describe('Report Parsing all pass and fail cases', function(){
+  var p = buildParser(' a = pg_rpt_lng / pg_exp_was / pg_exp / pg_rpt_sht' + nl + pg_defs);
+
+  it('should parse expression evaluated fail ', function() {
+    var parsed = parse(p, 'test_0_Runner.c:15:test_TEST_ASSERT:FAIL: Expression Evaluated To FALSE');
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_0_Runner', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('15', parsed[0][3].join(''));
+    assert.deepEqual('test', parsed[0][5]);
+    assert.deepEqual('_TEST_ASSERT', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual(': ', parsed[1]); //:exp
+    assert.deepEqual('Expression Evaluated To FALSE', parsed[2].join('')); // expected in exp/was failure
+    assert.deepEqual(': ', parsed[1]);         //second :exp
+    assert.isUndefined(parsed[3]);             //was
+    assert.isUndefined(parsed[4]);
+  });
+
+  it('should pass long self test format fail to pass', function(){
+    var parsed = parse(p, 'test_g.c:3483:testNotEqualDoubleArraysInf:FAIL: Element 1 Values Not Within Delta test_g.c:3474:testNotEqualDoubleArraysInf:PASS');
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_g', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('3483', parsed[0][3][0] + parsed[0][3][1].join(''));
+    assert.deepEqual('test', parsed[0][5]);
+    assert.deepEqual('NotEqualDoubleArraysInf', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual(':', parsed[1][0][1]); // ': Expected differs
+    assert.deepEqual('test', parsed[2][0][0][0]);
+    assert.deepEqual('_g',   parsed[2][0][1].join(''));
+    assert.deepEqual('.c',   parsed[2][1].join(''));
+    assert.deepEqual('3474', parsed[2][3][0] + parsed[2][3][1].join(''));
+    assert.deepEqual('test', parsed[2][5]);
+    assert.deepEqual('NotEqualDoubleArraysInf', parsed[2][6].join(''));
+    assert.deepEqual('PASS', parsed[2][8]);
+  });
+
+  it('should pass short format pass', function(){
+    parsed = parse(p, 'testunity.c:94:testTrue:PASS');
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0]);
+    assert.deepEqual('unity', parsed[0][1].join(''));
+    assert.deepEqual('.c', parsed[1].join(''));
+    assert.deepEqual('94', parsed[3][0] + parsed[3][1].join(''));
+    assert.deepEqual('test', parsed[5]);
+    assert.deepEqual('True', parsed[6].join(''));
+    assert.deepEqual('PASS', parsed[8]);
+  });
+
+  it('should parse a test ignore', function(){
+    parsed = parse(p, 'test_a_Runner.c:2142:Test_IgnoredAndThenFailInTearDown:IGNORE');
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0]);
+    assert.deepEqual('_a_Runner', parsed[0][1].join(''));
+    assert.deepEqual('.c', parsed[1].join(''));
+    assert.deepEqual('2142', parsed[3][0] + parsed[3][1].join(''));
+    assert.deepEqual('Test', parsed[5]);
+    assert.deepEqual('_IgnoredAndThenFailInTearDown', parsed[6].join(''));
+    assert.deepEqual('IGNORE', parsed[8]);
+  });
+
+  it('should parse expected was style fail', function(){
+    var parsed = parse(p, 'test_0_Runner.c:90:test_TEST_ASSERT_EQUAL_UINT:FAIL: Expected 0 Was 254');
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_0_Runner', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('90', parsed[0][3][0] + parsed[0][3][1].join(''));
+    assert.deepEqual('test', parsed[0][5]);
+    assert.deepEqual('_TEST_ASSERT_EQUAL_UINT', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual('Expected ', parsed[3]); //:exp
+    assert.deepEqual('0', parsed[4].join(''));
+    assert.deepEqual(' Was ', parsed[5]);       //was
+    assert.deepEqual('254', parsed[6].join(''));
+  });
+
+});
+
+describe('ASSERT_INT_WITHIN parsing', function() {
+  var pa = buildParser(' a = pg_exp_was '
+                       + nl + pg_rpt_sht + pg_rpt_name + pg_c_ext + pg_col + pg_rpt_ln
+                       + pg_test_prefix + pg_char + pg_passfail + nonzero_digit
+                       + digit + src_char + nl
+                       + ' pg_exp_was = pg_rpt_sht ": " ( !"Expected " [ \'.0-9a-zA-Z_-] )*  "Expected " [\'.0-9a-zA-Z_-]* " Was " [\'.0-9a-zA-Z_-]* '
+                       + nl);
+
+//  it('should parse ASSERT_INT_WITHIN test', function(){
+//    parsed = parse(pa, 'test_0_Runner.c:139:test_TEST_ASSERT_INT_WITHIN:FAIL: Values Not Within Delta 20 Expected 100 Was 150');
+//    assert.isArray(parsed);
+//    assert.isArray(parsed);
+//    assert.deepEqual('test', parsed[0][0][0][0]);
+//    assert.deepEqual('_0_Runner', parsed[0][0][1].join(''));
+//    assert.deepEqual('.c', parsed[0][1].join(''));
+//    assert.deepEqual('139', parsed[0][3][0] + parsed[0][3][1].join(''));
+//    assert.deepEqual('test', parsed[0][5]);
+//    assert.deepEqual('_TEST_ASSERT_INT_WITHIN', parsed[0][6].join(''));
+//    assert.deepEqual('FAIL', parsed[0][8]);
+//    assert.deepEqual(':', parsed[1][0]); // ': Expected differs
+//    var x = parsed[2][0][1]
+//          + parsed[2][1][1]
+//          + parsed[2][2][1]
+//          + parsed[2][3][1]
+//          + parsed[2][4][1]
+//          + parsed[2][5][1];
+//    x = x.replace(/,/g , '');
+//    assert.deepEqual('Values Not Within Delta 20', x );
+//    assert.deepEqual('Expected ', parsed[3]);
+//    assert.deepEqual('100', parsed[4].join(''));
+//    assert.deepEqual(' Was ', parsed[5]);
+//    assert.deepEqual('150', parsed[6].join(''));
 //  });
-//
-//   it('should parse a local include filename with proceeding whitespace', function(){
-//     assert.deepEqual(['"', [' ', ' '], ['a', 'b', 'c'],[], '"'],parse(p, '"  abc"'));
-//   });
-//});
-//
-//describe('Include Header Local File Parsing:', function() {
-//
-//  var p = buildParser(pg_linclude + pg_all_ws + pg_hinclude + pg_min_ws + pg_includelname + pg_char + pg_sp_mk);
-//
-//  it('should parse #include with local include name', function(){
-//    assert.deepEqual([[], '#include',[' '],['"',[],['n', 'a', 'm', 'e'],[],'"']], parse(p, '#include "name"'));
-//    assert.deepEqual([[' ',' '], '#include',[' '],['"',[],['n', 'a', 'm', 'e'],[],'"']], parse(p, '  #include "name"'));
-//    assert.deepEqual([[' ',' '], '#include',[' '],['"',[' '],['n', 'a', 'm', 'e'],[],'"']], parse(p, '  #include " name"'));
-//    assert.deepEqual([[' ',' '], '#include',[' ',' '],['"',[' ', ' '],['n', 'a', 'm', 'e'],[' ',' '],'"']],
-//                     parse(p, '  #include  "  name  "'));
-//  });
-//});
-//
-//describe('opening angle pracket parsing:', function() {
-//  var p = buildParser(pg_op_an_br);
-//  it('should parse <', function() {
-//    assert.deepEqual('<' ,parse(p, '<'));
-//  });
-//});
-//
-//describe('closing angle pracket parsing', function() {
-//  p = buildParser(pg_cl_an_br);
-//  it('should parse >', function() {
-//    assert.deepEqual('>',parse(p,'>'));
-//  });
-//});
-//
-//describe('Include Header Global File Parsing:', function() {
-//
-//  var p = buildParser(pg_includegname + pg_op_an_br + pg_all_ws + pg_char + pg_cl_an_br);
-//
-//  it('should parse global header filename', function(){
-//    assert.deepEqual(['<', [], ['n', 'a', 'm', 'e'], [], '>'], parse(p, '<name>'));
-//  });
-//
-//  it('should parse global header filename with leading whitespace', function(){
-//    assert.deepEqual(['<', [' '], ['n', 'a', 'm', 'e'], [], '>'], parse(p, '< name>'));
-//    assert.deepEqual(['<', [' ',' '], ['n', 'a', 'm', 'e'], [], '>'], parse(p, '<  name>'));
-//  });
-//
-//  it('should parse global header filename with trailing whitespace', function(){
-//    assert.deepEqual(['<', [], ['n', 'a', 'm', 'e'], [' '], '>'], parse(p, '<name >'));
-//    assert.deepEqual(['<', [], ['n', 'a', 'm', 'e'], [' ',' '], '>'], parse(p, '<name  >'));
-//  });
-//});
-//
-//describe('Include Header Global File Parsing:', function() {
-//
-//  var p = buildParser(pg_ginclude + pg_all_ws + pg_hinclude + pg_min_ws + pg_includegname + pg_op_an_br + pg_char + pg_cl_an_br);
-//
-//  it('should parse #include with global include name', function() {
-//    assert.deepEqual([[], '#include',[' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, '#include <name>'));
-//    assert.deepEqual([[' '], '#include',[' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, ' #include <name>'));
-//    assert.deepEqual([[' ',' '], '#include',[' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, '  #include <name>'));
-//    assert.deepEqual([[' ',' '], '#include',[' ',' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, '  #include  <name>'));
-//    assert.deepEqual([[' ',' '], '#include',[' ',' '],['<',[' '],['n', 'a', 'm', 'e'],[' '],'>']], parse(p, '  #include  < name >'));
-//
-//  });
-//});
-//
-//describe('Include Combined Global and Local Include File Parsing:', function() {
-//  var p = buildParser(pg_include + pg_linclude + pg_ginclude +
-//                      pg_all_ws + pg_hinclude + pg_min_ws +
-//                      pg_includelname + pg_includegname +
-//                      pg_sp_mk + pg_char + pg_op_an_br +
-//                      pg_cl_an_br);
-//
-//  it('should parse local header', function() {
-//    assert.deepEqual([[], '#include',[' '],['"',[],['n', 'a', 'm', 'e'],[],'"']], parse(p, '#include "name"'));
-//    assert.deepEqual([[' ',' '], '#include',[' '],['"',[],['n', 'a', 'm', 'e'],[],'"']], parse(p, '  #include "name"'));
-//  assert.deepEqual([[' ',' '], '#include',[' '],['"',[' '],['n', 'a', 'm', 'e'],[],'"']], parse(p, '  #include " name"'));
-//    assert.deepEqual([[' ',' '], '#include',[' ',' '],['"',[' ', ' '],['n', 'a', 'm', 'e'],[' ',' '],'"']], parse(p, '  #include  "  name  "'));
-//  });
-//
-//  it('should parse global header', function() {
-//    assert.deepEqual([[], '#include',[' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, '#include <name>'));
-//  });
-//  assert.deepEqual([[' '], '#include',[' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, ' #include <name>'));
-//  assert.deepEqual([[' ',' '], '#include',[' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, '  #include <name>'));
-//  assert.deepEqual([[' ',' '], '#include',[' ',' '],['<',[],['n', 'a', 'm', 'e'],[],'>']], parse(p, '  #include  <name>'));
-//  assert.deepEqual([[' ',' '], '#include',[' ',' '],['<',[' '],['n', 'a', 'm', 'e'],[' '],'>']], parse(p, '  #include  < name >'));
-//})
+
+  it('should parse TEST_ASSERT_EQUAL_STRING result', function(){
+    parsed = parse(pa, "test_0_Runner.c:163:test_TEST_ASSERT_EQUAL_STRING:FAIL: Expected 'here' Was 'there'");
+    assert.deepEqual('Expected ', parsed[3]);
+    assert.deepEqual("'here'", parsed[4].join(''));
+    assert.deepEqual(' Was ', parsed[5]);
+    assert.deepEqual("'there'", parsed[6].join(''));
+  });
+});
+
+describe('Fix regression error', function(){
+  //  var p = buildParser(' a = pg_rpt_lng / pg_exp_was / pg_exp / pg_rpt_sht' + nl + pg_defs);
+  var p = buildParser('a = pg_rpt' + nl + pg_defs);
+  var scr = 'test_z_Runner.c:96:Test_True:FAIL: Expression Evaluated To FALSE[[[[ Previous Test Should Have Passed But Did Not ]]]]';
+
+  it('should FAIL with long error message', function() {
+    var parsed = parse(p, scr);
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_z_Runner', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('96', parsed[0][3][0] + parsed[0][3][1].join(''));
+    assert.deepEqual('Test', parsed[0][5]);
+    assert.deepEqual('_True', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual('Expression Evaluated To FALSE[[[[ Previous Test Should Have Passed But Did Not ]]]]', parsed[2].join(''));
+    assert.isUndefined(parsed[3]); //:exp
+    assert.isUndefined(parsed[4]);
+    assert.isUndefined(parsed[5]);       //was
+  });
+});
+
+describe('Parse added error message including whitespace', function(){
+  //  var p = buildParser(' a = pg_rpt_lng / pg_exp_was / pg_exp / pg_rpt_sht' + nl + pg_defs);
+  var p = buildParser('a = pg_rpt' + nl + pg_defs);
+
+  it('should parse added message', function() {
+    var scr = 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: Message';
+    assert.isArray(parse(p, scr));
+    assert.deepEqual('Message', parse(p, scr)[2].join(''));
+  });
+  it('should parse added message including whitespace', function() {
+    var scr = 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: I am the Error Message';
+    assert.isArray(parse(p, scr));
+    assert.deepEqual('I am the Error Message', parse(p, scr)[2].join(''));
+  });
+});
+
+describe('Parse added error message with punctuation', function(){
+  var p = buildParser('a = pg_rpt' + nl + pg_defs);
+  it('should parse period', function() {
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: A message.'));
+  });
+  it('should parse comma', function() {
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: A message,'));
+  });
+  it('should parse plus minus equal', function() {
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: A message,.-=+ '));
+  });
+
+  it('should parse !', function() {
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: A message!'));
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: !! some message !!'));
+  });
+
+  it('should parse ?', function() {
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: A message?'));
+    assert.isArray(parse(p, 'test_0_Runner.c:225:test_TEST_ASSERT_MESSAGE:FAIL: ?? some message ??'));
+  });
+});
+
+describe('Parse assert equal type with added message', function(){
+  var p = buildParser('a = pg_rpt_sht ": " ( !"Expected " [ \'.0-9a-zA-Z_-] )*  "Expected " [\'.0-9a-zA-Z_-]* " Was " ( !". " [\'.0-9a-zA-Z_-])* ". " src_char*' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:245:test_TEST_ASSERT_EQUAL_INT_MESSAGE:FAIL: Expected 123 Was 12. an error message';
+  var parsed = parse(p, scr);
+  it('should parse equal int with added message', function() {
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_0_Runner', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('245', parsed[0][3][0] + parsed[0][3][1].join(''));
+    assert.deepEqual('test', parsed[0][5]);
+    assert.deepEqual('_TEST_ASSERT_EQUAL_INT_MESSAGE', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual('Expected ', parsed[3]); //:exp
+    assert.deepEqual('123', parsed[4].join(''));
+    assert.deepEqual(' Was ', parsed[5]);       //was
+    assert.deepEqual('12', parsed[6].join('').replace(/,/g, ''));
+    assert.deepEqual('. ', parsed[7]);
+    assert.deepEqual('an error message', parsed[8].join(''));
+  });
+});
+
+describe('Parse assert equal type with added message and period in actual val', function(){
+  var p = buildParser('a = pg_rpt_sht ": " ( !"Expected " [ \'.0-9a-zA-Z_-] )*  "Expected " [\'.0-9a-zA-Z_-]* " Was " ( !". " [\'.0-9a-zA-Z_-])* ". " src_char*' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:245:test_TEST_ASSERT_EQUAL_INT_MESSAGE:FAIL: Expected 123 Was 1.2. an error message';
+  var parsed = parse(p, scr);
+  it('should parse equal int with added message', function() {
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_0_Runner', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('245', parsed[0][3][0] + parsed[0][3][1].join(''));
+    assert.deepEqual('test', parsed[0][5]);
+    assert.deepEqual('_TEST_ASSERT_EQUAL_INT_MESSAGE', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual('Expected ', parsed[3]); //:exp
+    assert.deepEqual('123', parsed[4].join(''));
+    assert.deepEqual(' Was ', parsed[5]);       //was
+    assert.deepEqual('1.2', parsed[6].join('').replace(/,/g, ''));
+    assert.deepEqual('. ', parsed[7]);
+    assert.deepEqual('an error message', parsed[8].join(''));
+  });
+});
+describe('Parse INT_64_WITHIN_MESSAGE for default message', function(){
+  var p = buildParser('a = pg_rpt' + nl + pg_defs);
+  var scr = 'test_0_Runner.c:439:test_TEST_ASSERT_INT64_WITHIN_MESSAGE:FAIL: Values Not Within Delta 20 Expected 100 Was 150. within message INT64';
+  var parsed = parse(p, scr);
+  it('should parse equal int with added message', function() {
+    assert.isArray(parsed);
+    assert.deepEqual('test', parsed[0][0][0][0]);
+    assert.deepEqual('_0_Runner', parsed[0][0][1].join(''));
+    assert.deepEqual('.c', parsed[0][1].join(''));
+    assert.deepEqual('439', parsed[0][3][0] + parsed[0][3][1].join(''));
+    assert.deepEqual('test', parsed[0][5]);
+    assert.deepEqual('_TEST_ASSERT_INT64_WITHIN_MESSAGE', parsed[0][6].join(''));
+    assert.deepEqual('FAIL', parsed[0][8]);
+    assert.deepEqual('Values Not Within Delta 20 ', parsed[2].join('').replace(/,/g, ''));
+    assert.deepEqual('Expected ', parsed[3]); //:exp
+    assert.deepEqual('100', parsed[4].join(''));
+    assert.deepEqual(' Was ', parsed[5]);       //was
+    assert.deepEqual('150', parsed[6].join('').replace(/,/g, ''));
+    assert.deepEqual('. ', parsed[7]);
+    assert.deepEqual('within message INT64', parsed[8].join(''));
+  });
+});

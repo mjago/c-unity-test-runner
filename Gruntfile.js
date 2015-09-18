@@ -1,5 +1,8 @@
 module.exports = function(grunt) {
 
+  var flags = {};
+  flags.spawn = false;
+
   grunt.loadNpmTasks('grunt-simple-mocha');
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-shell');
@@ -10,33 +13,34 @@ module.exports = function(grunt) {
         stderr: false
       },
       target: {
-        command: 'node stream.js'
+        command: 'node test_search_includes.js'
+//        command: 'mocha generate_parser.js'
       }
     },
     simplemocha:{
-      src: "test_search_includes.js",
+      src: "generate_parser.js",
       options:{
-        reporter: 'spec',
-//        slow: 500,
-        timeout: 2000
+        //reporter: 'list',
+        //        slow: 500,
+        //        timeout: 2000
       }
     },
     watch:{
       all:{
         files: ['Gruntfile.js',
-  //              'buildTestRunner.js',
+                'report.js',
+                'spawner.js',
                 'test_search_includes.js',
                 'gcc.js',
-//                'generate_parser.js',
-    //            'debug.js',
-      //          'peg.js',
-        //        'stream.js',
-          //      'test_includesParser.js',
-            //    "/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/testunity.c"
+                'progress.js',
+                'generate_parser.js',
+                'debug.js',
+                "/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/test_0.c",
+                "/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/test_1.c"
                ],
-        tasks: ['simplemocha'],
+        tasks: ['shell'],
         options: {
-//          spawn: false
+          spawn: flags.spawn
         }
       }
     }

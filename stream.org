@@ -16,3 +16,18 @@ case 'building runner'
 case 'compile runner'
 case 'link runner'
 case 'run runner'
+* runBuildReport(build, runTests)
+** build currently does nothing
+** runTests()
+*** cleans
+*** findTests(anon fn(basename, count))
+**** buildTests(basename)
+**** runGcc(basename, count)
+***** testRunner.build(name)
+
+** To fix
+*** broken build throws and doesn't return us a c stacktrace
+i.e.  TEST_ASSERT()
+
+*** won't parse
+test_0_Runner.c:91:Test_UnitySizeInitializationReminder:FAIL: Expected 217 Was 216. Unexpected size for _Unity struct. Please check that the initialization of the Unity symbol in unity.c is still correct.[[[[ Previous Test Should Have Passed But Did Not ]]]]

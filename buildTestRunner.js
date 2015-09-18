@@ -1,5 +1,6 @@
 var peg             = require('./peg.js'),
     dbg             = require('./debug.js'),
+    prg             = require('./progress.js'),
     fs              = require('fs'),
     path            = require('path'),
     str             = require('string'),
@@ -21,9 +22,22 @@ exports.build = function(readStreamName, filename){
     testCount = 0,
     voidLine  = 0,
     lineNum   = 0,
-  runnerName = filename;
-  runState(readStreamName);
+  runnerName  = filename;
+
+  parseUnitTests(readStreamName);
+  prepareTests(readStreamName);
 };
+
+function prepareTests(readStreamName){
+  prg.tick();
+  writeBuf = writeBufMacro(writeBuf);
+  writeBuf = writeIncludes(writeBuf);
+  writeBuf = writeDeclarations(writeBuf);
+  writeBuf = writeMain(writeBuf);
+  writeBuf = writeTests(writeBuf);
+  writeBuf = writeUnityEnd(writeBuf);
+  fs.writeFileSync(runnerName, writeBuf.toString('utf-8'));
+}
 
 function voidFound(line){
   buffer += ' ' + line;
@@ -100,7 +114,7 @@ function writeUnityEnd(writeBuf){
 };
 
 function saveInclude(filename) {
-  testData.includes.push('#include ' + filename);
+  testData.includes.push(filename);
 }
 
 function writeIncludes(writeBuf) {
@@ -108,7 +122,7 @@ function writeIncludes(writeBuf) {
     return self.indexOf(item) == pos;});
   writeBuf += (writeTitle('Detected Include Files') + nl);
   for(var count = 0; count < inc.length; count++){
-    writeBuf += (inc[count] + nl);
+    writeBuf += ('#include ' + inc[count] + nl);
   }
   return writeBuf;
 }
@@ -164,10 +178,6 @@ function sleep(time, callback) {
 }
 
 function writeDeclarations(writeBuf){
-//extern void setUp(void);
-//extern void tearDown(void);
-//extern void testNotEqualDoubleArraysInf (void );
-
   writeBuf += (writeTitle('Declarations') + nl);
   writeBuf +=    'void setUp(void);\n';
   writeBuf +=    'void tearDown(void);\n';
@@ -193,69 +203,4 @@ function writeMain(writeBuf) {
    '  UnityBegin("' +
    path.basename(runnerName) + '");'    + nl );
   return writeBuf;
-}
-
-function runState(readStreamName){
-//  var stop = new Date().getTime();
-  var states = ['parse unit tests', 'write runner wait', 'write run macro',
-                'write includes', 'write declarations', 'write main',
-                'write tests', 'write unity end', 'write to file', 'wait'];
-  var state = 0;
-  while(state < states.length)
-  {
-    switch(states[state]) {
-
-    case 'parse unit tests':
-      parseUnitTests(readStreamName);
-
-      state += 1;
-      break;
-
-    case 'write runner wait':
-      state +=1;
-      break;
-
-    case 'write run macro':
-      writeBuf = writeBufMacro(writeBuf);
-      state += 1;
-      break;
-
-    case 'write includes':
-      writeBuf = writeIncludes(writeBuf);
-      state += 1;
-      break;
-
-    case 'write declarations':
-      writeBuf = writeDeclarations(writeBuf);
-      state += 1;
-      break;
-
-    case 'write main':
-      writeBuf = writeMain(writeBuf);
-      state += 1;
-      break;
-
-    case 'write tests':
-      writeBuf = writeTests(writeBuf);
-      state += 1;
-      break;
-
-    case 'write unity end':
-      writeBuf = writeUnityEnd(writeBuf);
-      state += 1;
-      break;
-
-    case 'write to file':
-      fs.writeFileSync(runnerName, writeBuf.toString('utf-8'));
-      state += 1;
-      break;
-
-    case 'wait':
-      state += 1;
-      break;
-
-    default:
-      console.log(clc.red('in default!!'));
-    }
-  }
 }

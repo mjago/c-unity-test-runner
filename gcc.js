@@ -13,7 +13,9 @@ cfg.compiler.options = ['-c', '-m64', '-Wall', '-Wno-address', '-std=c99',
 
 cfg.compiler.includes = {};
 cfg.compiler.includes.prefix = '-I';
-cfg.compiler.includes.items = ['/Users/martyn/_unity_quick_setup/dev/Unity/src/', cfg.compiler.unit_tests_path];
+cfg.compiler.includes.items = ['/Users/martyn/_unity_quick_setup/dev/Unity/src/',
+                               cfg.compiler.unit_tests_path,
+                              '/Users/martyn/_unity_quick_setup/src/'];
 cfg.compiler.defines = {};
 cfg.compiler.defines.prefix = '-D';
 cfg.compiler.defines.items = ['UNITY_INCLUDE_DOUBLE', 'UNITY_SUPPORT_TEST_CASES',
