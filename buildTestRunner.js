@@ -26,6 +26,7 @@ exports.build = function(readStreamName, filename){
 
   parseUnitTests(readStreamName);
   prepareTests(readStreamName);
+  return testData.includes;
 };
 
 function prepareTests(readStreamName){

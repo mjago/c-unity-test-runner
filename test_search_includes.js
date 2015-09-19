@@ -11,10 +11,14 @@ var dbg             = require('./debug.js');
 var report          = require('./report');
 var mocha           = new Mocha();
 var testFileSize    = 0;
+var data            = {headers: [], includedCFiles: []};
 
 exports.runTests = function(){
   var filesProcessed = 0;
   cleanSync();
+
+  findRequisiteCFiles();
+
   var files = findTests(function(base, count){
     if(dbg.flags.log_build){
       console.log('building', base);
@@ -23,6 +27,7 @@ exports.runTests = function(){
     mocha.addFile(
       path.join(cfg.compiler.build_path, base + '.js'));
     buildTestsSync(base);
+    console.log('data.headers', data.headers);
     runGcc(base, count, function(){
       prg.tick();
       report.run(base, function(){
@@ -46,13 +51,37 @@ exports.runTests = function(){
   };
 };
 
-function buildTestsSync(basename){
-  var dirs = fs.readdirSync('/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/');
-  testRunner.build(cfg.compiler.unit_tests_path + basename + '.c',
-                   cfg.compiler.build_path + createRunnerName(basename));
+function findRequisiteCFiles(){
+  var dirs = cfg.compiler.includes.items,
+      cFiles = [];
+  var headers = [];
+  headers = headers.concat.apply(headers, data.headers);
+  for(var dirCount = 0; dirCount < dirs.length; dirCount++){
+    var tempFiles = (fs.readdirSync('' + dirs[dirCount]));
+    for(var fileCount = 0; fileCount < tempFiles.length; fileCount++){
+      var cBase = path.basename(tempFiles[fileCount], '.c');
+      for(var hCount = 0; hCount < headers.length; hCount++){
+        var hBase = path.basename('' + headers[hCount]
+                                  .replace(/"/g, '')
+                                  .replace(/</g, '')
+                                  .replace(/>/g, ''), '.h');
+        if(hBase === cBase){
+          data.includedCFiles.push('' + dirs[dirCount] + tempFiles[fileCount]);
+        }
+      }
+    }
+  }
 }
 
-function findTests(runtest_cb){
+function buildTestsSync(basename){
+  var dirs = fs.readdirSync('/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/');
+  var headers = testRunner
+        .build(cfg.compiler.unit_tests_path + basename + '.c',
+               cfg.compiler.build_path + createRunnerName(basename));
+  data.headers.push(headers);
+}
+
+function findTests(runtestCallback){
   var foundCount = 0;
   var dirs = fs.readdirSync(cfg.compiler.unit_tests_path);
   var files = [];
@@ -72,7 +101,7 @@ function findTests(runtest_cb){
   if(dbg.flags.log_build){console.log('finding', base);}
   prg.init_bar(testFileSize);
   for(count = 0; count < testFileSize; count++){
-    runtest_cb(files[count], foundCount++);
+    runtestCallback(files[count], foundCount++);
   }
 }
 
