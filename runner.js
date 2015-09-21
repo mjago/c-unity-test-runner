@@ -1,55 +1,120 @@
+
 var fs              = require('fs');
 var path            = require('path');
 var Mocha           = require('mocha');
-var prg             = require('./progress.js');
+var sys             = require('sys');
+var clc             = require('cli-color');
+var bar             = require('./progress.js');
 var testRunner      = require('./buildTestRunner.js');
 var spawner         = require('./spawner.js');
-var cfg             = require("./gcc.js").data();
-var clc             = require('cli-color');
-var sys             = require('sys');
+var cfg             = require("./gcc.js");
 var dbg             = require('./debug.js');
 var report          = require('./report');
+var clean           = require('./clean');
 var mocha           = new Mocha();
 var testFileSize    = 0;
 var data            = {headers: [], includedCFiles: []};
+var filesProcessed = 0;
 
 exports.runTests = function(){
-  var filesProcessed = 0;
   cleanSync();
-
   findRequisiteCFiles();
-
-  var files = findTests(function(base, count){
-    if(dbg.flags.log_build){
-      console.log('building', base);
-    }
-    prg.tick();
-    mocha.addFile(
-      path.join(cfg.compiler.build_path, base + '.js'));
-    buildTestsSync(base);
-    console.log('data.headers', data.headers);
-    runGcc(base, count, function(){
-      prg.tick();
-      report.run(base, function(){
-      });
-
-      filesProcessed += 1;
-      if(filesProcessed == testFileSize){
-        mocha.
-          ui('tdd').
-          reporter('mochawesome').
-          run(function(failures){
-          process.on('exit', function () {
-            process.exit(failures);
-          });
-        });
-      };
-    });
+  findTests(function callbackFindTests(base, count){
+    buildTests(base, count);
   });
-  if(dbg.flags.log_timers){
-    console.timeEnd(name);
-  };
 };
+
+function isTestFile(name){
+  return (name.indexOf('test') === 0 ? true: false);
+}
+
+function isCFile(name){
+  return (path.extname(name) === '.c');
+}
+
+function getTestFilenames(dirs){
+  var testFiles = [];
+  testFiles = dirs.filter(function(element, index, array) {
+    return ((isCFile(element)) &&
+            (isTestFile(element)));
+  });
+  return testFiles;
+}
+
+function basenames(files){
+  var testFiles = files.map(function(currentValue){
+    return path.basename(currentValue, '.c');
+  });
+  return testFiles;
+}
+
+function unitTestsPath(){
+  return cfg.compiler.unit_tests_path;
+}
+
+function findTests(callback){
+  var dirs       = fs.readdirSync(unitTestsPath());
+  var filenames  = getTestFilenames(dirs);
+  var bases      = basenames(filenames);
+  var foundCount = 0;
+  testFileSize = bases.length;
+  bar.init(testFileSize);
+  bases.map(function(currentValue){
+    callback(currentValue, foundCount++);
+  });
+}
+
+function buildTests(base, count){
+  dbg.building(base);
+  bar.update('runner');
+  mochaAddFile(base);
+  buildTestsSync(base);
+  runGcc(base, count, function () {
+    reporter(base);
+  });
+};
+
+function reporter(base){
+  bar.update('runner');
+  var result = report.run(base, function(){
+  });
+  dbg.log('resultJS', 'built result ' + result);
+  if (result){
+
+    mochaRunMaybe();
+  }
+}
+
+function mochaRunMaybe(){
+  if(++filesProcessed == testFileSize){
+    dbg.log('resultJS', 'running Mocha');
+    mochaRun();
+  };
+}
+
+function mochaRun(){
+  mocha.
+    ui(cfg.mocha.ui).
+    reporter(cfg.mocha.reporter).
+    run(function(failures){
+      process.on('exit', function () {
+        process.exit(failures);
+      });
+    });
+}
+
+function mochaAddFile(base){
+  mocha.addFile(
+    path.join(compilerBuildPath(), base + '.js'));
+}
+
+function removeIncludeMarkers(header){
+  return path.basename('' + header
+                       .replace(/"/g, '')
+                       .replace(/</g, '')
+                       .replace(/>/g, ''), '.h');
+
+}
 
 function findRequisiteCFiles(){
   var dirs = cfg.compiler.includes.items,
@@ -61,10 +126,7 @@ function findRequisiteCFiles(){
     for(var fileCount = 0; fileCount < tempFiles.length; fileCount++){
       var cBase = path.basename(tempFiles[fileCount], '.c');
       for(var hCount = 0; hCount < headers.length; hCount++){
-        var hBase = path.basename('' + headers[hCount]
-                                  .replace(/"/g, '')
-                                  .replace(/</g, '')
-                                  .replace(/>/g, ''), '.h');
+        var hBase = removeIncludeMarkers(headers[hCount]);
         if(hBase === cBase){
           data.includedCFiles.push('' + dirs[dirCount] + tempFiles[fileCount]);
         }
@@ -74,86 +136,83 @@ function findRequisiteCFiles(){
 }
 
 function buildTestsSync(basename){
-  var dirs = fs.readdirSync('/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/');
+  var dirs = fs.readdirSync(unitTestsPath());
   var headers = testRunner
-        .build(cfg.compiler.unit_tests_path + basename + '.c',
-               cfg.compiler.build_path + createRunnerName(basename));
+        .build(unitTestsPath() + basename + '.c',
+               compilerBuildPath() + createRunnerName(basename));
   data.headers.push(headers);
 }
 
-function findTests(runtestCallback){
-  var foundCount = 0;
-  var dirs = fs.readdirSync(cfg.compiler.unit_tests_path);
-  var files = [];
-  var count;
-  if(dbg.flags.log_timers){console.time(base);}
-
-  for(count = 0; count < dirs.length; count++){
-    if(path.extname(dirs[count]) === '.c'){
-      var base = path.basename(dirs[count], '.c');
-      if(base.indexOf('test') === 0){
-        files.push(base);
-        testFileSize += 1;
-      }
-    }
-  }
-
-  if(dbg.flags.log_build){console.log('finding', base);}
-  prg.init_bar(testFileSize);
-  for(count = 0; count < testFileSize; count++){
-    runtestCallback(files[count], foundCount++);
-  }
-}
-
-function runGcc(name, count, reporter){
-  var basename = name;
-
-  details = [];
-  if(count == 0){
-    details.push('gcc');
-    details.push(unityOutput(unitySource(options(includes(defines())))));
-  }
-  details.push('gcc');
-  details.push(output(basename, source(basename, options(includes(defines())))));
-  details.push('gcc');
-  details.push(outputR(basename, sourceR(basename, options(includes(defines())))));
-  details.push('gcc');
-  details.push(
-    ['-lm','-m64',
-     cfg.linker.object_files.path + 'unity' + cfg.compiler.object_files.extension,
-     cfg.linker.object_files.path + basename + cfg.compiler.object_files.extension,
-     cfg.linker.object_files.path + basename + '_Runner' + cfg.compiler.object_files.extension,
-     cfg.linker.bin_files.prefix + cfg.linker.bin_files.destination
-     + basename + cfg.linker.bin_files.extension]);
-  details.push(
-    cfg.linker.bin_files.destination +
-      basename + cfg.linker.bin_files.extension);
-  details.push(['']);
-//  details.push(basename);
+function spawnRunner(details, basename, reporter){
   spawner.run(details, basename, 0, reporter);
 }
 
-function rmDir(dirPath, removeSelf) {
-  if (removeSelf === undefined)
-    removeSelf = true;
-  try {
-    var files = fs.readdirSync(dirPath);
-  }
-  catch(e) { return; }
-  if (files.length > 0)
-    for (var i = 0; i < files.length; i++) {
-      if(dbg.flags.log_clean){
-        console.log('cleaning', files[i]);
-      }
-      var filePath = dirPath + '/' + files[i];
-      if (fs.statSync(filePath).isFile())
-        fs.unlinkSync(filePath);
-      else
-        rmDir(filePath);
-    }
-  if (removeSelf)
-    fs.rmdirSync(dirPath);
-};
+function runGcc(basename, count, reporter){
+  var details = runnerExecDetailsMaybe(count);
+  details.push(compilerExec());
+  details.push(sourceArgs(basename));
+  details.push(compilerExec());
+  details.push(runnerArgs(basename));
+  details.push(linkerExec());
+  details.push(linkerDetails(basename));
+  details.push(linkerDestination(basename));
+  spawnRunner(details, basename, reporter);
+}
+
+function runnerExecDetailsMaybe(count){
+  var details = [];
+  if(count > 0) return details;
+  details.push(compilerExec());
+  details.push(runnerExecArgs());
+  return details;
+}
+
+function compilerExec(){
+  return cfg.compiler.path + cfg.compiler.exec;
+}
+
+function linkerExec(){
+  return cfg.linker.path + cfg.linker.exec;
+}
+
+function runnerExecArgs(){
+  return runnerExecOutput(runnerExecSource(options(includes(defines()))));
+}
+function sourceArgs(basename){
+  return output(basename, source(basename, options(includes(defines()))));
+//  return details;
+}
+
+function runnerArgs(basename){
+  return outputR(basename, sourceR(basename, options(includes(defines()))));
+  return details;
+}
+
+function objectPath(name){
+  return (objectFilesPath() + name + objectFilesExtension());
+}
+
+function objectDestination(name){
+  return (cfg.linker.bin_files.prefix + cfg.linker.bin_files.destination
+    + name + cfg.linker.bin_files.extension);
+}
+
+function linkerDestination(name){
+  return(cfg.linker.bin_files.destination +
+         name + cfg.linker.bin_files.extension);
+}
+
+function runnerName(){
+  return('_Runner');
+}
+
+function linkerDetails(basename){
+  return ['-lm','-m64',
+          objectPath(cfg.runner.name),
+          objectPath(basename),
+          objectPath(basename + runnerName()),
+          objectDestination(basename)];
+}
 
 function createRunnerName(sourceName){
   var ext = path.extname(sourceName);
@@ -161,84 +220,110 @@ function createRunnerName(sourceName){
   return runner;
 }
 
-function defines() {
-  var args = [];
-  var defs = cfg.compiler.defines.items;
-  for(count = 0; count < defs.length; count++){
-    args.push(cfg.compiler.defines.prefix + defs[count]);
-  }
-  return args;
+function definesItems(){
+  return(cfg.compiler.defines.items);
+}
+
+function includesItems(){
+  return(cfg.compiler.includes.items);
+}
+
+function definesPrefix(){
+  return (cfg.compiler.defines.prefix);
+}
+
+function includesPrefix(){
+  return(cfg.linker.includes.prefix);
+}
+
+function defines(){
+  return definesItems().map(function(cV){
+    return(definesPrefix() + cV);
+  });
 }
 
 function includes(args){
-  var incs = cfg.compiler.includes.items;
-  for(count = 0; count < incs.length; count++){
-    args.push(cfg.compiler.includes.prefix + incs[count]);
-  }
-  return args;
+  return args.concat(args, includesItems()
+                     .map(function(cV){
+    return(includesPrefix() + cV);
+  }));
+}
+
+function compilerOptions(){
+  return(cfg.compiler.options);
+}
+
+function compilerObjectFilesDest(){
+  return (cfg.compiler.object_files.destination);
+}
+
+function compilerBuildPath(){
+  return cfg.compiler.build_path;
+}
+
+function sourceFilesExtension(){
+  return cfg.compiler.source_files.extension;
+}
+
+function objectFilesExtension(){
+  return cfg.compiler.object_files.extension;
+}
+
+function objectFilesPath(){
+  return cfg.linker.object_files.path;
+}
+
+function objectPrefix(){
+  return(cfg.compiler.object_files.prefix);
 }
 
 function options(args){
-  var opts = cfg.compiler.options;
-  for(count = 0; count < opts.length; count++){
-    args.push(opts[count]);
-  }
-  return args;
+  return args.concat(args, compilerOptions()
+                     .map(function(cV){return cV;}));
 }
 
 function source(basename, args){
-  args.push(cfg.compiler.unit_tests_path + basename + '.c');
+  args.push(unitTestsPath() + basename +
+            sourceFilesExtension());
   return args;
 }
 
 function output(basename, args) {
-  args.push(cfg.compiler.object_files.prefix +
-            cfg.compiler.object_files.destination +
-            basename + cfg.compiler.object_files.extension);
+  args.push(objectPrefix() +
+            compilerObjectFilesDest() +
+            basename + objectFilesExtension());
   return args;
 }
 
 function sourceR(basename, args){
-  args.push(cfg.compiler.build_path + basename + '_Runner.c');
+  args.push(compilerBuildPath() +
+            basename + '_Runner.c');
   return args;
 }
 
 function outputR(basename, args) {
-  args.push(cfg.compiler.object_files.prefix + cfg.compiler.object_files.destination + basename + '_Runner.o');
+  args.push(objectPrefix() +
+            compilerObjectFilesDest() +
+            basename + '_Runner.o');
   return args;
 }
 
-function unityOutput(args) {
-  args.push(cfg.compiler.object_files.prefix +
-            cfg.compiler.build_path + 'unity' +
-            cfg.compiler.object_files.extension);
+function runnerExecOutput(args) {
+  args.push(objectPrefix() +
+            compilerBuildPath() +
+            cfg.runner.object);
   return args;
 }
 
-function unitySource(args) {
-  args.push(cfg.unity.source_path + cfg.name);
+function runnerExecSource(args) {
+  args.push(cfg.runner.source_path + cfg.runner.sourceName);
   return args;
 }
 
 function cleanSync()
 {
-  rmDir(cfg.compiler.build_path, false);
-}
-
-function runMoch(){
-  fs.readdirSync(cfg.compiler.build_path).filter(function(file){
-    return file.substr(-3) === '.js';
-  }).forEach(function(file){
-    mocha.addFile(
-      path.join(cfg.compiler.build_path, file)
-    );
-  });
-
-  mocha.run(function(failures){
-    process.on('exit', function () {
-      process.exit(failures);
-    });
-  });
+  clean.clean(compilerBuildPath());
+//  rmDir(compilerBuildPath(), false);
 }
 
 this.runTests();

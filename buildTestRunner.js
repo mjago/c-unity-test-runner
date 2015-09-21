@@ -1,66 +1,81 @@
 var peg             = require('./peg.js'),
     dbg             = require('./debug.js'),
-    prg             = require('./progress.js'),
+    bar             = require('./progress.js'),
     fs              = require('fs'),
     path            = require('path'),
     str             = require('string'),
-    clc             = require('cli-color'),
-    testData        = {tests: [], lines: [], includes: []},
-    flags           = { },
     nl              = '\n',
-    runnerName      = '',
-    buffer          = '',
-    testCount       = 0,
-    voidLine        = 0,
-    lineNum         = 0,
-    writeBuf        = '';
-    close           = false;
+    flags           = {},
+    testData        = {};
 
 exports.build = function(readStreamName, filename){
-  testData    = {tests: [], lines: [], includes: []},
-  writeBuf    = '';
-    testCount = 0,
-    voidLine  = 0,
-    lineNum   = 0,
-  runnerName  = filename;
-
+  testData = resetData();
   parseUnitTests(readStreamName);
-  prepareTests(readStreamName);
+  prepareTests(readStreamName, filename);
   return testData.includes;
 };
 
-function prepareTests(readStreamName){
-  prg.tick();
-  writeBuf = writeBufMacro(writeBuf);
+function resetData(){
+  return {tests: [], lines: [],
+          includes: [], buf: '',
+          count: 0, voidLn: 0, lineNum: 0};
+}
+
+function writeTestData(writeBuf, filename){
   writeBuf = writeIncludes(writeBuf);
   writeBuf = writeDeclarations(writeBuf);
-  writeBuf = writeMain(writeBuf);
-  writeBuf = writeTests(writeBuf);
-  writeBuf = writeUnityEnd(writeBuf);
-  fs.writeFileSync(runnerName, writeBuf.toString('utf-8'));
+  writeBuf = writeMain(writeBuf, filename);
+  return writeTests(writeBuf);
+}
+
+function prepareTests(readStreamName, filename){
+  var writeBuf = '';
+  bar.update('build');
+  writeBuf = writeBufMacro(writeBuf);
+  writeBuf = writeTestData(writeBuf, filename);
+  writeBuf = writeUnityEnd(writeBuf, filename);
+  fs.writeFileSync(filename, writeBuf.toString('utf-8'));
+}
+
+function isOpenBracket(line){
+  return (line.indexOf('{') > -1);
 }
 
 function voidFound(line){
-  buffer += ' ' + line;
-  dbg.voidFound(buffer);
-  if(line.indexOf('{') > -1){
+  testData.buf += ' ' + line;
+  dbg.voidFound(testData.buf);
+  if(isOpenBracket(line)){
     flags.voidFound = false;
     flags.scan = true;
   }
 }
 
+function testLineNum(parsed){
+  return parsed[3][0] + parsed[3][1].join('');
+}
+
 function parseTest(){
-  dbg.scan(buffer);
-  var tsts = peg.parse(buffer, 'testParser');
-  if(tsts){
-    buffer = '';
-    testCount += 1;
-    saveTest(voidLine, tsts[3][0] + tsts[3][1].join(''));
-    voidLine = 0;
-    dbg.count(testCount);
-  }
+  return peg.parse(testData.buf, 'testParser');
+}
+
+function parseInclude(line){
+  return peg.parse(line.trim(), 'includeParser');
+}
+
+function processTest(parsed){
+  if( ! parsed) return;
+  saveTest(testData.voidLn, testLineNum(parsed));
+  testData.voidLn = 0;
+  testData.buf = '',
+  testData.count += 1;
+  dbg.count(testData.count);
+}
+
+function parseLine(){
+  dbg.scan(testData.buf);
+  processTest( parseTest());
   flags.scan = false;
-  buffer = '';
+  testData.buf = '';
 }
 
 function isVoid(line){
@@ -75,10 +90,10 @@ function isInclude(line){
 }
 
 function onLine(line) {
-  lineNum += 1;
+  testData.lineNum += 1;
   if(isVoid(line)){
     flags.voidFound = true;
-    voidLine = lineNum;
+    testData.voidLn = testData.lineNum;
   }
 
   if(flags.voidFound)
@@ -87,34 +102,41 @@ function onLine(line) {
   }
   if(flags.scan)
   {
-    parseTest();
+    parseLine();
   }
   if(isInclude(line)){
-    var incs = peg.parse(line.trim(), 'includeParser');
-    if(incs){
-      saveInclude(incs[3][0] + incs[3][2].join('') + incs[3][4]);
-    }
+    var include = parseInclude(line);
+      saveInclude(parseInclude(line),
+                  headerFile(include));
   }
+}
+
+function headerFile(incs){
+  return incs[3][0] + incs[3][2].join('') + incs[3][4];
 }
 
 var parseUnitTests = function(readStreamName) {
   var inData = fs.readFileSync(readStreamName).toString().split("\n");
 
-  for(count = 0; count < inData.length; count++)
-  {
-    onLine(inData[count]);
-  }
+  inData.map(function(v){
+    onLine(v);
+  });
+//  for(count = 0; count < inData.length; count++)
+//  {
+//    onLine(inData[count]);
+//  }
 };
 
-function writeUnityEnd(writeBuf){
+function writeUnityEnd(writeBuf, filename){
   var complete = false;
   writeBuf += (writeTitle('End Test Run') + nl);
   writeBuf += ('  return (UnityEnd());' + nl + '}' + nl +
-                    (writeTitle('End of ' + path.basename(runnerName))));
+                    (writeTitle('End of ' + path.basename(filename))));
   return writeBuf;
 };
 
-function saveInclude(filename) {
+function saveInclude(include, filename) {
+  if( ! include) return;
   testData.includes.push(filename);
 }
 
@@ -189,7 +211,7 @@ function writeDeclarations(writeBuf){
   return writeBuf;
 }
 
-function writeMain(writeBuf) {
+function writeMain(writeBuf, filename) {
   writeBuf +=
   (writeTitle('Test Reset Option')      + nl +
    'void resetTest(void);'              + nl +
@@ -202,6 +224,6 @@ function writeMain(writeBuf) {
    'int main(void)'                     + nl +
    '{'                                  + nl +
    '  UnityBegin("' +
-   path.basename(runnerName) + '");'    + nl );
+   path.basename(filename) + '");'    + nl );
   return writeBuf;
 }

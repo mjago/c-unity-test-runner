@@ -3,9 +3,9 @@ var util        = require('util');
 var Mocha       = require('mocha');
 var path        = require('path');
 var peg         = require('./peg.js');
-var cfg         = require('./gcc.js').data();
+var cfg         = require('./gcc.js');
 var dbg         = require('./debug.js');
-var prg         = require('./progress.js');
+var bar         = require('./progress.js');
 var TestDetails = require('./test_detail.js');
 var outBuf      = '';
 
@@ -13,7 +13,7 @@ exports.run = function(basename){
   var test = new TestDetails(basename);
   var f = fs.readFileSync(cfg.compiler.build_path + basename + '.txt');
   var ary = (f + '').split('\n');
-  prg.tick();
+  bar.update('report');
 
   if(basename !== ''){
     startSuite(test);
@@ -60,6 +60,7 @@ exports.run = function(basename){
   endSuite();
   fs.writeFileSync(cfg.compiler.build_path + basename + '.js', outBuf);
   outBuf = '';
+  return basename + '.js';
 };
 
 function beginsWithTest(str){
@@ -72,13 +73,13 @@ function beginsWithTest(str){
 }
 
 function parseFail(test, count){
-  console.log('parseFail');
+  //console.log('parseFail');
 
   var results = test.results[count];
   test.fileName = results[0][0][0][0]
     + results[0][0][1].join('')
     + results[0][1].join('');
-  console.log('\nfileName', test.fileName);
+  //console.log('\nfileName', test.fileName);
 
   test.lineNum = results[0][3][0] +
     results[0][3][1].join('');
@@ -86,7 +87,7 @@ function parseFail(test, count){
 
   test.testName = results[0][5] +
     results[0][6].join('');
-  console.log('testName', test.testName);
+  //console.log('testName', test.testName);
 
   test.testResult = results[0][8];
   //console.log('test.testResult', test.testResult);
@@ -110,13 +111,13 @@ function parseFail(test, count){
 }
 
 function parseShort(test, count){
-  console.log('parseShort');
+  //console.log('parseShort');
   var results = test.results[count]
   //console.log('parseShort');
   test.fileName = results[0][0][0] +
     results[0][1].join('') +
     results[1].join('');
-  console.log('fileName', test.fileName);
+  //console.log('fileName', test.fileName);
 
   test.lineNum = results[3][0] +
     results[3][1].join('');
@@ -124,20 +125,20 @@ function parseShort(test, count){
 
   test.testName = results[5] +
     results[6].join('');
-  console.log('testName', test.testName);
+  //console.log('testName', test.testName);
 
   test.testResult = results[8];
   //console.log('test.testResult', test.testResult);
 }
 
 function parseLong(test, count){
-  console.log('parseLong');
+  //console.log('parseLong');
   //console.log('count', count);
   var results = test.results[count];
   test.fileName = results[0][0][0][0] +
     results[0][0][1].join('') +
     results[0][1].join('');
-  console.log('fileName', test.fileName);
+  //console.log('fileName', test.fileName);
 
   test.lineNum = results[0][3][0] +
     results[0][3][1].join('');
@@ -145,25 +146,25 @@ function parseLong(test, count){
 
   test.testName = results[0][5] +
     results[0][6].join('');
-  console.log('testName', test.testName);
+  //console.log('testName', test.testName);
 
   if(results[4]){ // normal fail
-    console.log('Normal Fail?');
+    //console.log('Normal Fail?');
     test.actualResult = results[0][8];
-    console.log('test.actualResult', test.actualResult);
+    //console.log('test.actualResult', test.actualResult);
     test.testResult = results[0][8];
-    console.log('test.testResult', test.testResult);
+    //console.log('test.testResult', test.testResult);
     test.expected = results[4].join('');
-    console.log('Expected', test.expected);
+    //console.log('Expected', test.expected);
 
     for(var x = 0; x < results[2].length; x++){
       test.hint += results[2][x][1];
     }
 
-    console.log('Hint', test.hint);
+    //console.log('Hint', test.hint);
 
     test.actual = results[6].join('').replace(/,/g, '');
-    console.log('Was', test.actual);
+    //console.log('Was', test.actual);
     if(results[7] === '. '){
       var std_msg = test.hint = results[2].join('').replace(/,/g, '');
       var custom_msg = results[8].join('');
@@ -177,11 +178,11 @@ function parseLong(test, count){
   }
   else{
     var result;
-    console.log('Not Normal Fail?');
+    //console.log('Not Normal Fail?');
     result = results[2].join('');
-    console.log('result', result);
+    //console.log('result', result);
     var actualResult = result.slice(-4);
-    console.log('actualResult', actualResult);
+    //console.log('actualResult', actualResult);
     if((actualResult == 'PASS') || (actualResult === 'FAIL')) {
       test.testResult = actualResult;
     }
@@ -190,16 +191,15 @@ function parseLong(test, count){
       test.message = results[2].join('');
     }
 //    test.testResult = test.actualResult;
-//    console.log('test.testResult', test.testResult);
-//    console.log('Expected', test.expected);
-//    console.log('Was', test.actual);
+//    //console.log('test.testResult', test.testResult);
+//    //console.log('Expected', test.expected);
+//    //console.log('Was', test.actual);
 //    test.message = results[2].join('');
-//    console.log('here!')
+//    //console.log('here!')
 //    test.testResult = results[0][8];
-//    console.log('test.testResult',test.testResult)
+//    //console.log('test.testResult',test.testResult)
   }
 }
-
 
 function errMessageStart(){
   return 'err.message = "Test Error: ';
