@@ -1,7 +1,7 @@
-var fs              = require('fs');
-var dbg             = require('./debug.js');
+var fs  = require('fs');
+var dbg = require('./debug.js');
 
-exports.clean = function(path){
+module.exports.clean = function(path){
   rmDir(path);
 };
 

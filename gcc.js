@@ -64,6 +64,7 @@ cfg.linker.bin_files.destination = cfg.compiler.build_path;
 
 cfg.mocha = {};
 cfg.mocha.ui = 'tdd';
+cfg.mocha.reporter = 'spec';
 cfg.mocha.reporter = 'progress';
 
 cfg.color = true;

@@ -9,9 +9,14 @@ var killed   = false;
 var firstErr = false;
 
 exports.run = function (details, basename, runCount, reporter){
+
+  console.log('here');
+  
   var resultsFile = createResultsStream(basename);
   var cmd = details.shift();
   var args = details.shift();
+//  console.log('cmd', cmd);
+  console.log('args', args);
   var child = spawn(cmd, args);
 
   prg.update('spawner', runCount);

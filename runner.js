@@ -11,65 +11,71 @@ var cfg             = require("./gcc.js");
 var dbg             = require('./debug.js');
 var report          = require('./report');
 var clean           = require('./clean');
+var data            = {headers: [], includedCFiles: []};
 var mocha           = new Mocha();
 var testFileSize    = 0;
-var data            = {headers: [], includedCFiles: []};
-var filesProcessed = 0;
+var filesProcessed  = 0;
 
 exports.runTests = function(){
   cleanSync();
-  findRequisiteCFiles();
-  findTests(function callbackFindTests(base, count){
+  buildUnity();
+  findTests(function (base, count){
     buildTests(base, count);
   });
 };
 
-function isTestFile(name){
-  return (name.indexOf('test') === 0 ? true: false);
-}
-
-function isCFile(name){
-  return (path.extname(name) === '.c');
-}
-
-function getTestFilenames(dirs){
-  var testFiles = [];
-  testFiles = dirs.filter(function(element, index, array) {
-    return ((isCFile(element)) &&
-            (isTestFile(element)));
-  });
-  return testFiles;
-}
-
-function basenames(files){
-  var testFiles = files.map(function(currentValue){
-    return path.basename(currentValue, '.c');
-  });
-  return testFiles;
-}
-
-function unitTestsPath(){
-  return cfg.compiler.unit_tests_path;
-}
-
-function findTests(callback){
-  var dirs       = fs.readdirSync(unitTestsPath());
-  var filenames  = getTestFilenames(dirs);
-  var bases      = basenames(filenames);
-  var foundCount = 0;
-  testFileSize = bases.length;
-  bar.init(testFileSize);
-  bases.map(function(currentValue){
-    callback(currentValue, foundCount++);
-  });
+//todo
+function buildCRequisites(){
+  console.log('data.includedCFiles', data.includedCFiles)
+  for(var count = 0; count < data.includedCFiles.length; count++){
+    
+  }
 }
 
 function buildTests(base, count){
+  var args = ''
   dbg.building(base);
   bar.update('runner');
   mochaAddFile(base);
   buildTestsSync(base);
-  runGcc(base, count, function () {
+  findRequisiteCFiles(function(){
+    var details = [];
+    console.log('data.includedCFiles', data.includedCFiles)
+    //    data.includedCFiles.forEach(function(val){
+//    details = []
+    val = data.includedCFiles[1]
+    basename = path.basename(val, '.c');
+    //      console.log('val', val);
+    //      console.log(cfg.compiler.options + val)
+    cfg.compiler.defines.items.forEach(function(v){
+//      args += '-D' + v;
+      details.push('-D' + v)
+    });
+    cfg.compiler.options.forEach(function(v){
+      //        console.log('v',v)
+//      args += v;
+      details.push(v)
+    });
+    console.log('details', details)
+//    args += ', ' + val;
+    details.push(val)
+    details.push(objectPrefix() +
+                 compilerObjectFilesDest() +
+                 basename + objectFilesExtension());
+
+//    details.push(compilerExec());
+//    details.push([args]);
+    //      console.log('details', details)
+    spawner.run(['gcc',details, 'gcc', ['-lm','-m64',
+                                        objectPath(cfg.runner.name),
+                                        objectPath(basename),
+                                        objectPath(basename + runnerName()),
+                                        objectDestination(basename)]]
+                                        , basename, 0, function(){});
+  });
+  //  });
+  //  buildCRequisites();
+  buildRunners(base, count, function () {
     reporter(base);
   });
 };
@@ -80,7 +86,6 @@ function reporter(base){
   });
   dbg.log('resultJS', 'built result ' + result);
   if (result){
-
     mochaRunMaybe();
   }
 }
@@ -97,7 +102,7 @@ function mochaRun(){
     ui(cfg.mocha.ui).
     reporter(cfg.mocha.reporter).
     run(function(failures){
-      process.on('exit', function () {
+      process.on('exit', function() {
         process.exit(failures);
       });
     });
@@ -116,25 +121,6 @@ function removeIncludeMarkers(header){
 
 }
 
-function findRequisiteCFiles(){
-  var dirs = cfg.compiler.includes.items,
-      cFiles = [];
-  var headers = [];
-  headers = headers.concat.apply(headers, data.headers);
-  for(var dirCount = 0; dirCount < dirs.length; dirCount++){
-    var tempFiles = (fs.readdirSync('' + dirs[dirCount]));
-    for(var fileCount = 0; fileCount < tempFiles.length; fileCount++){
-      var cBase = path.basename(tempFiles[fileCount], '.c');
-      for(var hCount = 0; hCount < headers.length; hCount++){
-        var hBase = removeIncludeMarkers(headers[hCount]);
-        if(hBase === cBase){
-          data.includedCFiles.push('' + dirs[dirCount] + tempFiles[fileCount]);
-        }
-      }
-    }
-  }
-}
-
 function buildTestsSync(basename){
   var dirs = fs.readdirSync(unitTestsPath());
   var headers = testRunner
@@ -147,7 +133,28 @@ function spawnRunner(details, basename, reporter){
   spawner.run(details, basename, 0, reporter);
 }
 
-function runGcc(basename, count, reporter){
+function buildUnity(){
+  var details = [];
+  var basename = 'unity';
+  var reporter = null;
+//  if(count > 0) return details;
+  details.push(compilerExec());
+  details.push(runnerExecArgs());
+//  return details;
+
+
+//  var details = runnerExecDetailsMaybe(count);
+//  details.push(compilerExec());
+//  details.push(sourceArgs(basename));
+//  details.push(compilerExec());
+//  details.push(runnerArgs(basename));
+//  details.push(linkerExec());
+//  details.push(linkerDetails(basename));
+//  details.push(linkerDestination(basename));
+  spawnRunner(details, basename, function(){});
+}
+
+function buildRunners(basename, count, reporter){
   var details = runnerExecDetailsMaybe(count);
   details.push(compilerExec());
   details.push(sourceArgs(basename));
@@ -178,6 +185,13 @@ function linkerExec(){
 function runnerExecArgs(){
   return runnerExecOutput(runnerExecSource(options(includes(defines()))));
 }
+
+//todo
+function requisiteCArgs(cFile){
+  args = options(includes(defines()));
+  return output(basename, args);
+}
+
 function sourceArgs(basename){
   return output(basename, source(basename, options(includes(defines()))));
 //  return details;
@@ -192,54 +206,123 @@ function objectPath(name){
   return (objectFilesPath() + name + objectFilesExtension());
 }
 
-function objectDestination(name){
-  return (cfg.linker.bin_files.prefix + cfg.linker.bin_files.destination
-    + name + cfg.linker.bin_files.extension);
+function isTestFile(name){
+  return (name.indexOf('test') === 0) ||
+    (name.indexOf('Test') === 0);
 }
 
-function linkerDestination(name){
-  return(cfg.linker.bin_files.destination +
-         name + cfg.linker.bin_files.extension);
+function isCFile(name){
+  return (path.extname(name) === '.c') || (path.extname(name) === '.C');
 }
 
-function runnerName(){
-  return('_Runner');
+function getTestFilenames(files){
+  var testFiles = [];
+  testFiles = files.filter(function(element, index, array) {
+    return ((isCFile(element)) &&
+            (isTestFile(element)));
+  });
+    console.log('testFiles', testFiles);
+  return testFiles;
 }
 
-function linkerDetails(basename){
-  return ['-lm','-m64',
-          objectPath(cfg.runner.name),
-          objectPath(basename),
-          objectPath(basename + runnerName()),
-          objectDestination(basename)];
+function basenames(files){
+  var testFiles =files.map(function(currentValue){
+    return path.basename(currentValue, '.c');
+  });
+  return testFiles;
 }
 
-function createRunnerName(sourceName){
-  var ext = path.extname(sourceName);
-  var runner = sourceName + '_Runner.c';
-  return runner;
+function unitTestsPath(){
+  return cfg.compiler.unit_tests_path;
+}
+
+function findTests(buildtests_cb){
+  var files      = fs.readdirSync(unitTestsPath());
+  var filenames  = getTestFilenames(files);
+  var bases      = basenames(filenames);
+  var foundCount = 0;
+  testFileSize = bases.length;
+  bar.init(testFileSize);
+  bases.map(function(currentValue){
+    buildtests_cb(currentValue, foundCount++);
+  });
+}
+function findRequisiteCFiles(callback){
+  var dirs = cfg.compiler.includes.items,
+      cFiles = [];
+  var headers = [];
+  headers = headers.concat.apply(headers, data.headers);
+  console.log('headers',headers);
+  for(var dirCount = 0; dirCount < dirs.length; dirCount++){
+    var tempFiles = (fs.readdirSync('' + dirs[dirCount]));
+    for(var fileCount = 0; fileCount < tempFiles.length; fileCount++){
+      var cBase = path.basename(tempFiles[fileCount], '.c');
+      for(var hCount = 0; hCount < headers.length; hCount++){
+        var hBase = removeIncludeMarkers(headers[hCount]);
+        if(hBase === cBase){
+          data.includedCFiles.push('' + dirs[dirCount] + tempFiles[fileCount]);
+        }
+      }
+    }
+  }
+  callback();
+}
+
+function outputR(basename, args) {
+  args.push(objectPrefix() +
+            compilerObjectFilesDest() +
+            basename + '_Runner.o');
+  return args;
+}
+
+function sourceR(basename, args){
+  args.push(compilerBuildPath() +
+            basename + '_Runner.c');
+  return args;
+}
+
+function output(basename, args) {
+  args.push(objectPrefix() +
+            compilerObjectFilesDest() +
+            basename + objectFilesExtension());
+  return args;
+}
+
+function source(basename, args){
+  args.push(unitTestsPath() + basename +
+            sourceFilesExtension());
+  return args;
+}
+
+function options(args){
+  return args.concat(args, compilerOptions()
+                     .map(function(cV){return cV;}));
 }
 
 function definesItems(){
   return(cfg.compiler.defines.items);
 }
 
-function includesItems(){
-  return(cfg.compiler.includes.items);
+function defines(){
+  return definesItems().map(function(cV){
+    return(definesPrefix() + cV);
+  });
 }
 
-function definesPrefix(){
-  return (cfg.compiler.defines.prefix);
+function includesItems(){
+  return(cfg.compiler.includes.items);
 }
 
 function includesPrefix(){
   return(cfg.linker.includes.prefix);
 }
 
-function defines(){
-  return definesItems().map(function(cV){
-    return(definesPrefix() + cV);
-  });
+function definesPrefix(){
+  return (cfg.compiler.defines.prefix);
+}
+
+function objectPrefix(){
+  return(cfg.compiler.object_files.prefix);
 }
 
 function includes(args){
@@ -273,38 +356,18 @@ function objectFilesPath(){
   return cfg.linker.object_files.path;
 }
 
-function objectPrefix(){
-  return(cfg.compiler.object_files.prefix);
+function objectDestination(name){
+  return (cfg.linker.bin_files.prefix + cfg.linker.bin_files.destination
+    + name + cfg.linker.bin_files.extension);
 }
 
-function options(args){
-  return args.concat(args, compilerOptions()
-                     .map(function(cV){return cV;}));
+function linkerDestination(name){
+  return(cfg.linker.bin_files.destination +
+         name + cfg.linker.bin_files.extension);
 }
 
-function source(basename, args){
-  args.push(unitTestsPath() + basename +
-            sourceFilesExtension());
-  return args;
-}
-
-function output(basename, args) {
-  args.push(objectPrefix() +
-            compilerObjectFilesDest() +
-            basename + objectFilesExtension());
-  return args;
-}
-
-function sourceR(basename, args){
-  args.push(compilerBuildPath() +
-            basename + '_Runner.c');
-  return args;
-}
-
-function outputR(basename, args) {
-  args.push(objectPrefix() +
-            compilerObjectFilesDest() +
-            basename + '_Runner.o');
+function runnerExecSource(args) {
+  args.push(cfg.runner.source_path + cfg.runner.sourceName);
   return args;
 }
 
@@ -315,9 +378,23 @@ function runnerExecOutput(args) {
   return args;
 }
 
-function runnerExecSource(args) {
-  args.push(cfg.runner.source_path + cfg.runner.sourceName);
-  return args;
+function createRunnerName(sourceName){
+  var ext = path.extname(sourceName);
+  var runner = sourceName + '_Runner.c';
+  return runner;
+}
+
+function runnerName(){
+  return('_Runner');
+}
+
+//todo
+function linkerDetails(basename){
+  return ['-lm','-m64',
+          objectPath(cfg.runner.name),
+          objectPath(basename),
+          objectPath(basename + runnerName()),
+          objectDestination(basename)];
 }
 
 function cleanSync()
@@ -326,4 +403,50 @@ function cleanSync()
 //  rmDir(compilerBuildPath(), false);
 }
 
-this.runTests();
+//this.runTests();
+
+module.exports = {
+  data: data,
+
+  removeIncludeMarkers: removeIncludeMarkers,
+  runnerExecDetailsMaybe: runnerExecDetailsMaybe,
+  compilerExec: compilerExec,
+  linkerExec: linkerExec,
+  runnerExecArgs: runnerExecArgs,
+  requisiteCArgs: requisiteCArgs,
+  sourceArgs: sourceArgs,
+  runnerArgs: runnerArgs,
+  objectPath: objectPath,
+  isTestFile: isTestFile,
+  isCFile: isCFile,
+  getTestFilenames: getTestFilenames,
+  basenames: basenames,
+  unitTestsPath: unitTestsPath,
+  findTests: findTests,
+  findRequisiteCFiles: findRequisiteCFiles,
+  outputR: outputR,
+  sourceR: sourceR,
+  output: output,
+  source: source,
+  options: options,
+  definesItems: definesItems,
+  defines: defines,
+  includesItems: includesItems,
+  includesPrefix: includesPrefix,
+  definesPrefix: definesPrefix,
+  objectPrefix: objectPrefix,
+  includes: includes,
+  compilerOptions: compilerOptions,
+  compilerObjectFilesDest: compilerObjectFilesDest,
+  compilerBuildPath: compilerBuildPath,
+  sourceFilesExtension: sourceFilesExtension,
+  objectFilesExtension: objectFilesExtension,
+  objectFilesPath: objectFilesPath,
+  objectDestination: objectDestination,
+  linkerDestination: linkerDestination,
+  runnerExecSource: runnerExecSource,
+  runnerExecOutput: runnerExecOutput,
+  createRunnerName: createRunnerName,
+  runnerName: runnerName,
+  linkerDetails: linkerDetails
+};

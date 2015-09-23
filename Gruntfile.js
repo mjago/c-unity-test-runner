@@ -13,7 +13,7 @@ module.exports = function(grunt) {
         stderr: false
       },
       target: {
-        command: 'node test_search_includes.js'
+        command: 'node runner.js'
 //        command: 'mocha generate_parser.js'
       }
     },
@@ -30,7 +30,7 @@ module.exports = function(grunt) {
         files: ['Gruntfile.js',
                 'report.js',
                 'spawner.js',
-                'test_search_includes.js',
+                'runner.js',
                 'gcc.js',
                 'progress.js',
                 'generate_parser.js',
@@ -48,4 +48,3 @@ module.exports = function(grunt) {
   grunt.registerTask(['simplemocha','shell']);
   grunt.registerTask('default', 'shell');
 };
-

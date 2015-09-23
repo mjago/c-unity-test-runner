@@ -32,11 +32,11 @@ exports.run = function(basename){
       }
     }
 
-    else if ((typeof test.results[count] !== 'undefined')
-             && test.results[count]
-             && util.isArray(test.results[count])){
-      if (test.results[count][0][0][0][0] == 'test' ||
-          test.results[count][0][0][0][0] == 'Test') {
+    else if((typeof test.results[count] !== 'undefined')
+            && test.results[count]
+            && util.isArray(test.results[count])){
+      if(test.results[count][0][0][0][0] == 'test' ||
+         test.results[count][0][0][0][0] == 'Test') {
         if(test.results[count][0][4]){
           parseLong(test, count);
         }
@@ -45,8 +45,8 @@ exports.run = function(basename){
           parseFail(test, count);
         }
       }
-      else if (test.results[count][0][0][0] == 'test' ||
-               test.results[count][0][0][0] == 'Test'){
+      else if(test.results[count][0][0][0] == 'test' ||
+              test.results[count][0][0][0] == 'Test'){
         parseShort(test, count);
       }
       else
