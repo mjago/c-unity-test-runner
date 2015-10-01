@@ -120,10 +120,6 @@ var parseUnitTests = function(readStreamName) {
   inData.map(function(v){
     onLine(v);
   });
-//  for(count = 0; count < inData.length; count++)
-//  {
-//    onLine(inData[count]);
-//  }
 };
 
 function writeUnityEnd(writeBuf, filename){
@@ -143,9 +139,9 @@ function writeIncludes(writeBuf) {
   var inc = testData.includes.filter(function(item, pos, self) {
     return self.indexOf(item) == pos;});
   writeBuf += (writeTitle('Detected Include Files') + nl);
-  for(var count = 0; count < inc.length; count++){
-    writeBuf += ('#include ' + inc[count] + nl);
-  }
+  inc.map(function(i){
+    writeBuf += ('#include ' + i + nl);
+  });
   return writeBuf;
 }
 
@@ -201,12 +197,11 @@ function sleep(time, callback) {
 
 function writeDeclarations(writeBuf){
   writeBuf += (writeTitle('Declarations') + nl);
-  writeBuf +=    'void setUp(void);\n';
-  writeBuf +=    'void tearDown(void);\n';
-
-  for(var count = 0; count < testData.tests.length; count++){
-    writeBuf += 'void ' + (testData.tests[count] + '(void);' + nl);
-  }
+  writeBuf += 'void setUp(void);\n';
+  writeBuf += 'void tearDown(void);\n';
+  testData.tests.map(function(data){
+    writeBuf += 'void ' + data + '(void);' + nl;
+  });
   return writeBuf;
 }
 

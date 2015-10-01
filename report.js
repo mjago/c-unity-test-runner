@@ -98,11 +98,10 @@ function parseFail(test, count){
     test.actual = results[6].join('');
     //console.log('Was', test.actual);
     test.message = '';
-    for(var x = 0; x < results[2].length; x++){
-      test.hint += results[2][x][1];
-    }
+    results[2].map(function(res){
+      test.hint += res[x][1];
+    });
     //console.log('Test.Hint', test.hint);
-
   }
   else{
     test.message = results[2].join('');
@@ -112,7 +111,7 @@ function parseFail(test, count){
 
 function parseShort(test, count){
   //console.log('parseShort');
-  var results = test.results[count]
+  var results = test.results[count];
   //console.log('parseShort');
   test.fileName = results[0][0][0] +
     results[0][1].join('') +
@@ -157,9 +156,9 @@ function parseLong(test, count){
     test.expected = results[4].join('');
     //console.log('Expected', test.expected);
 
-    for(var x = 0; x < results[2].length; x++){
-      test.hint += results[2][x][1];
-    }
+    results[2].map(function(res){
+      test.hint += res[x][1];
+    });
 
     //console.log('Hint', test.hint);
 

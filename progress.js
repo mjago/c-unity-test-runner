@@ -10,7 +10,7 @@ exports.init = function(count){
     var window_width = process.stdout.getWindowSize
           ? process.stdout.getWindowSize(1)[0]
           : tty.getWindowSize()[1];
-    width = window_width * .50 | 0;
+    width = window_width * 0.495 | 0;
   } catch(e){
     width = 100;
   }

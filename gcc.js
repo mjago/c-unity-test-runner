@@ -27,6 +27,7 @@ cfg.compiler.options = [
   '-Wno-unknown-pragmas', '-Wstrict-prototypes',
   '-Wundef', '-Wold-style-definition'];
 
+cfg.compiler.test_define = 'TEST';
 cfg.compiler.includes = {};
 cfg.compiler.includes.prefix = '-I';
 cfg.compiler.includes.items = [cfg.project.root + 'dev/Unity/src/',
@@ -36,7 +37,6 @@ cfg.compiler.defines = {};
 cfg.compiler.defines.prefix = '-D';
 cfg.compiler.defines.items = ['UNITY_INCLUDE_DOUBLE', 'UNITY_SUPPORT_TEST_CASES',
                               'UNITY_SUPPORT_64'];
-
 cfg.compiler.source_files = {};
 cfg.compiler.source_files.extension = '.c';
 cfg.compiler.source_files.path = cfg.unity.source_path;

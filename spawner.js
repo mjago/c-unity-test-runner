@@ -24,7 +24,7 @@ exports.run = function (details, basename, runCount, reporter){
     if(killed){
       return;
     }
-    else if(details.length >= 1) {
+    else if(details.length > 0) {
       exports.run(details, basename, ++runCount, reporter);
     }
     else{

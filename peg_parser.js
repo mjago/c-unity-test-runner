@@ -287,7 +287,7 @@ module.exports = (function() {
         var expectedDescs = new Array(expected.length),
             expectedDesc, foundDesc, i;
 
-        for (i = 0; i < expected.length; i++) {
+        for(i = 0; i < expected.length; i++) {
           expectedDescs[i] = expected[i].description;
         }
 
