@@ -19,14 +19,69 @@ var filesProcessed  = 0;
 exports.runTests = function(){
   Promise.resolve(cleanSync())
     .then(buildUnity())
-    .then(findTests(function (base){
-      buildTests(base);
+    .then(findTests(function(base){
+      buildTestsSync(base)
+    }))
+//       buildTests(base);
+    .then(findRequisiteCFiles(function(){
+//      console.log('data.includedCFiles', data.includedCFiles);
+    }))
+    .then(buildRequisiteCFiles())
+    .then(findTests(function(base){
+      buildTestsSync(base);
+       buildTests(base);
     }))
     .catch(function(error){
       console.error(error);
     });
 };
 
+function requisiteCArgs(cFile){
+  return ['/Users/martyn/_unity_quick_setup/src/' + cFile + '.c', '-DUNITY_INCLUDE_DOUBLE', '-DUNITY_SUPPORT_TEST_CASES', '-DUNITY_SUPPORT_64', '-DTEST', '-c', '-m64', '-Wall', '-Wno-address', '-std=c99', '-pedantic', '-Wextra', '-Werror', '-Wpointer-arith', '-Wcast-align', '-Wwrite-strings', '-Wswitch-default', '-Wunreachable-code', '-Winit-self', '-Wmissing-field-initializers', '-Wno-unknown-pragmas', '-Wstrict-prototypes', '-Wundef', '-Wold-style-definition', '-Isrc/', '-I../src/', '-Itests/', '-o/Users/martyn/_unity_quick_setup/dev/Unity/test/build/' + cFile + '.o'];
+}
+
+function buildRequisiteCFiles(){
+  var details = [];
+  var temp = [];
+  var basename;
+  for(var count = 0; count < data.includedCFiles.length; count++){
+    basename = path.basename(data.includedCFiles[count], '.c');
+    temp.push(requisiteCArgs(basename));
+//    console.log('temp', temp);
+    details = temp;
+    details.unshift(compilerExec());
+//    details.push(compilerExec());
+//    details.push(runnerArgs(basename));
+//    details.push(linkerExec());
+//    details.push(linkerDetails(basename));
+//    details.push(linkerDestination(basename));//compilerBuildPath() + basename + '.exe');
+//    details.push(data.includedCFiles[count]);
+    spawner.run(details, basename, 0, function(){});
+  data.includedCFiles = [];
+  }
+}
+
+
+function findRequisiteCFiles(callback){
+  var dirs = cfg.compiler.includes.items,
+      cFiles = [];
+  var headers = [];
+  headers = headers.concat.apply(headers, data.headers);
+  for(var dirCount = 0; dirCount < dirs.length; dirCount++){
+    var tempFiles = (fs.readdirSync('' + dirs[dirCount]));
+    for(var fileCount = 0; fileCount < tempFiles.length; fileCount++){
+      var cBase = path.basename(tempFiles[fileCount], '.c');
+      for(var hCount = 0; hCount < headers.length; hCount++){
+        var hBase = removeIncludeMarkers(headers[hCount]);
+        if(hBase === cBase && cBase !== 'unity'){
+          data.includedCFiles.push('' + dirs[dirCount] + tempFiles[fileCount]);
+        }
+      }
+    }
+  }
+  callback();
+}
+ 
 function findTests(buildtests_cb){
   var files      = fs.readdirSync(unitTestsPath());
   var filenames  = getTestFilenames(files);
@@ -39,62 +94,55 @@ function findTests(buildtests_cb){
   });
 }
 
-function buildCRequisites(){
-//  console.log('data.includedCFiles', data.includedCFiles);
-  for(var count = 0; count < data.includedCFiles.length; count++){
-  }
-}
-
 function buildTests(base){
   var args = '';
   dbg.building(base);
   bar.update('runner');
   mochaAddFile(base);
-  buildTestsSync(base);
   buildRunners(base, function () {
     reporter(base);
   });
 }
 
-//  findRequisiteCFiles(function(){
-//  });
-
-    //    var details = [];
-    //    console.log('data.includedCFiles', data.includedCFiles);
-    //    data.includedCFiles.forEach(function(val){
-    //    details = []
-    //    val = data.includedCFiles[1];
-    //    basename = path.basename(val, '.c');
-    //      console.log('val', val);
-    //      console.log(cfg.compiler.options + val)
-    //    cfg.compiler.defines.items.forEach(function(v){
-    //      args += '-D' + v;
-    //      details.push('-D' + v);
-    //    });
-    //    cfg.compiler.options.forEach(function(v){
-    //        console.log('v',v)
-    //      args += v;
-    //      details.push(v);
-    //    });
-    //    console.log('details', details);
-    //    args += ', ' + val;
-    //    details.push(val);
-    //    details.push(objectPrefix() +
-    //                 compilerObjectFilesDest() +
-    //                 basename + objectFilesExtension());
-
-    //    details.push(compilerExec());
-    //    details.push([args]);
-    //      console.log('details', details)
-    //    spawner.run(['gcc',details, 'gcc', ['-lm','-m64',
-    //                                        objectPath(cfg.runner.name),
-    //                                        objectPath(basename),
-    //                                        objectPath(basename + runnerName()),
-    //                                        objectDestination(basename)]]
-    //                                        , basename, 0, function(){});
-    //  });
-    //  });
-    //  buildCRequisites();
+//findRequisiteCFiles(function(){
+//
+//  var details = [];
+//      console.log('data.includedCFiles', data.includedCFiles);
+//  //    data.includedCFiles.forEach(function(val){
+//    //    details = []
+//    //    val = data.includedCFiles[1];
+//    //    basename = path.basename(val, '.c');
+//    //      console.log('val', val);
+//    //      console.log(cfg.compiler.options + val)
+//    //    cfg.compiler.defines.items.forEach(function(v){
+//    //      args += '-D' + v;
+//    //      details.push('-D' + v);
+//    //    });
+//    //    cfg.compiler.options.forEach(function(v){
+//    //        console.log('v',v)
+//    //      args += v;
+//    //      details.push(v);
+//    //    });
+//    //    console.log('details', details);
+//    //    args += ', ' + val;
+//    //    details.push(val);
+//    //    details.push(objectPrefix() +
+//    //                 compilerObjectFilesDest() +
+//    //                 basename + objectFilesExtension());
+//
+//    //    details.push(compilerExec());
+//    //    details.push([args]);
+//    //      console.log('details', details)
+//    //    spawner.run(['gcc',details, 'gcc', ['-lm','-m64',
+//    //                                        objectPath(cfg.runner.name),
+//    //                                        objectPath(basename),
+//    //                                        objectPath(basename + runnerName()),
+//    //                                        objectDestination(basename)]]
+//    //                                        , basename, 0, function(){});
+//    //  });
+//    //  });
+//    //  buildCRequisites();
+//});
 
 function reporter(base){
   bar.update('runner');
@@ -202,15 +250,8 @@ function runnerExecArgs(){
   return runnerExecOutput(runnerExecSource(options(includes(defines()))));
 }
 
-//todo
-function requisiteCArgs(cFile){
-  args = options(includes(defines()));
-  return output(basename, args);
-}
-
 function sourceArgs(basename){
   return output(basename, source(basename, options(includes(defines()))));
-//  return details;
 }
 
 function runnerArgs(basename){
@@ -249,26 +290,6 @@ function basenames(files){
 
 function unitTestsPath(){
   return cfg.compiler.unit_tests_path;
-}
-
-function findRequisiteCFiles(callback){
-  var dirs = cfg.compiler.includes.items,
-      cFiles = [];
-  var headers = [];
-  headers = headers.concat.apply(headers, data.headers);
-  for(var dirCount = 0; dirCount < dirs.length; dirCount++){
-    var tempFiles = (fs.readdirSync('' + dirs[dirCount]));
-    for(var fileCount = 0; fileCount < tempFiles.length; fileCount++){
-      var cBase = path.basename(tempFiles[fileCount], '.c');
-      for(var hCount = 0; hCount < headers.length; hCount++){
-        var hBase = removeIncludeMarkers(headers[hCount]);
-        if(hBase === cBase){
-          data.includedCFiles.push('' + dirs[dirCount] + tempFiles[fileCount]);
-        }
-      }
-    }
-  }
-  callback();
 }
 
 function outputR(basename, args) {
@@ -395,6 +416,7 @@ function runnerName(){
 function linkerDetails(basename){
   return ['-lm',
           '-m64',
+          '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/file_1.o',
           objectPath(cfg.runner.name),
           objectPath(basename),
           objectPath(basename + runnerName()),
