@@ -4,19 +4,20 @@ var flags = {
   //, 'debug': true
   //  , 'scan': true
   //  , 'voidFound': true
-  //  , 'count': true
+  //'count': true
   //  , trace: true
-     log_close: true
-    , log_exit: true
-  //  , log_run: true
-  //  , clean: true
-  //  , log_build: true
-  //  , log_timers: true
+  //, log_close: true
+  //, log_exit: true
+  //, log_run: true
+  //, clean: true
+  //, log_build: true
+  //, log_timers: true
   //  resultJS: true
 };
 
 exports.trace = flags.trace;
 exports.flags = flags;
+
 //exports.repeats = function()
 //{
 //  return flags.debug ? flags.repeats : 1;

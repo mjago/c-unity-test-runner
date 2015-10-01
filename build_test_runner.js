@@ -106,8 +106,7 @@ function onLine(line) {
   }
   if(isInclude(line)){
     var include = parseInclude(line);
-      saveInclude(parseInclude(line),
-                  headerFile(include));
+    saveInclude(include, headerFile(include));
   }
 }
 

@@ -64,8 +64,11 @@ cfg.linker.bin_files.destination = cfg.compiler.build_path;
 
 cfg.mocha = {};
 cfg.mocha.ui = 'tdd';
+cfg.mocha.reporter = 'dot';
+cfg.mocha.reporter = 'nyan';
 cfg.mocha.reporter = 'spec';
+cfg.mocha.reporter = 'min';
 cfg.mocha.reporter = 'progress';
 
-cfg.color = true;
+cfg.color = false;
 cfg.runner = cfg.unity;

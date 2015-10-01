@@ -10,13 +10,11 @@ var firstErr = false;
 
 exports.run = function (details, basename, runCount, reporter){
 
-  console.log('here');
-  
   var resultsFile = createResultsStream(basename);
   var cmd = details.shift();
   var args = details.shift();
 //  console.log('cmd', cmd);
-  console.log('args', args);
+//  console.log('args', args);
   var child = spawn(cmd, args);
 
   prg.update('spawner', runCount);
@@ -52,7 +50,7 @@ exports.run = function (details, basename, runCount, reporter){
   //  });
 
   child.on('exit', function (data) {
-    if( ! (details.length >= 1)) {
+    if( ! (details.length > 0)) {
     };
     if(data === 0)
     {
