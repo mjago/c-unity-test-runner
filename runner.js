@@ -1,5 +1,7 @@
+var Promise = require('bluebird');
+var fs = Promise.promisifyAll(require('fs'));
 var _               = require('lodash');
-var fs              = require('fs');
+//var fs              = require('fs');
 var path            = require('path');
 var Mocha           = require('mocha');
 var sys             = require('sys');
@@ -11,24 +13,59 @@ var cfg             = require("./gcc.js");
 var dbg             = require('./debug.js');
 var report          = require('./report');
 var clean           = require('./clean');
-var data            = {headers: [], includedCFiles: [], bases: []};
+var data            = {testFiles: [], headers: [], includedCFiles: [], bases: []};
 var mocha           = new Mocha();
 var testFileSize    = 0;
 var filesProcessed  = 0;
 
 exports.runTests = function(){
-  var count;
-  Promise.resolve(cleanSync())
-    .then(buildUnity())
+  cleanSync();
+  buildUnity()
+    .then(function(resolution){
+      console.log('resolution', resolution);
+      return findTests();
+    })
     .then(findTests())
+  //    .then(function(resolution){
+  //      console.log('resolution', resolution);
+  //      return findTests();
+  //    })
     .then(buildTestsSync())
-    .then(findRequisiteCFiles())
-    .then(buildRequisiteCFiles())
-    .then(buildTests())
+    .then(function(resolve){
+      findRequisiteCFiles();
+      buildRequisiteCFiles()
+    })
+    .then(function(res){
+      //      console.log('res', res);
+      buildTests();
+    })
     .catch(function(error){
-      console.error(error);
+      if(error) console.log('Error:', error);
     });
 };
+
+function awaitFileExistance(file){
+//  console.log(file)
+  var x = 0;
+  return new Promise(function(resolve, reject){
+    var int = setInterval(function(){
+      //      console.log('x', x);
+      if(++x === 200){
+        clearInterval(int);
+        //        console.log('x === 200',x );
+        reject('Error: timed out!');
+         ;
+      }
+      fs.lstat(file,
+               function(err, stats) {
+                 if(!err && stats.isFile()) {
+                   resolve('resolved');
+                   clearInterval(int);
+                 };
+               });
+    }, 10);
+  });
+}
 
 function findRequisiteCFiles(){
   var dirs    = cfg.compiler.includes.items,
@@ -63,28 +100,41 @@ function testDefine(){
           cfg.compiler.test_define];
 }
 
-function buildRequisiteCFiles(){
-  var details = [];
-  var basename;
-  data.includedCFiles.map(function(inc){
-    basename = path.basename(inc, '.c');
-    details.push(compilerExec());
-    details.push(requisiteCArgs(basename));
-    spawner.run(details, basename, 0, function(){});
-  });
-  data.includedCFiles = [];
-}
-
+// function findTests(){
+//   var files      = fs.readdirSync(unitTestsPath());
+//   var filenames  = getTestFilenames(files);
+//   var foundCount = 0;
+//   data.bases     = basenames(filenames);
+//   testFileSize = data.bases.length;
+//   bar.init(testFileSize);
+// }
+ 
 function findTests(){
-  var files      = fs.readdirSync(unitTestsPath());
-  var filenames  = getTestFilenames(files);
-  var foundCount = 0;
-  data.bases     = basenames(filenames);
-  testFileSize = data.bases.length;
-  bar.init(testFileSize);
+  return new Promise(function(resolve, reject){
+    fs.readdir(unitTestsPath(), function(err, files){
+      if(err){
+        console.log('rejected')
+        reject("Error: Can't find tests:", err);
+      }
+      else{
+        data.testFiles = files;
+        var filenames  = getTestFilenames(files);
+//        console.log('filenames',filenames);
+        console.log('filenames');
+        var foundCount = 0;
+        data.bases     = basenames(filenames);
+        console.log('data.bases', data.bases)
+        testFileSize = data.bases.length;
+        bar.init(testFileSize);
+        console.log('accepted')
+        resolve('found');
+      }
+    });
+  });
 }
 
 function buildTests(){
+//  console.log('here');
   var args = '';
   data.bases.map(function(base){
     dbg.building(base);
@@ -112,7 +162,7 @@ function mochaRunMaybe(){
     mochaRun();
   };
 }
- 
+
 function mochaRun(){
   mocha.
     ui(cfg.mocha.ui).
@@ -137,21 +187,45 @@ function removeIncludeMarkers(header){
 }
 
 function buildTestsSync(){
-  var dirs = fs.readdirSync(unitTestsPath());
-  data.bases.map(function(basename){
-    var headers = testRunner
-          .build(unitTestsPath() +
-                 basename +
-                 '.c',
-                 compilerBuildPath() +
-                 createRunnerName(basename));
-    data.headers.push(headers);
+  return new Promise(function(resolve, reject){
+    data.bases.map(function(basename){
+      console.log('data.bases', data.bases);
+      var headers = testRunner
+            .build(unitTestsPath() +
+                   basename +
+                   '.c',
+                   compilerBuildPath() +
+                   createRunnerName(basename));
+      data.headers = data.headers.concat(headers);
+    });
+    console.log('data.bases', data.bases);
+    console.log('data.headers', data.headers);
+    resolve();
   });
 }
 
 function spawnRunner(details, basename, reporter){
   spawner.run(details, basename, 0, reporter);
 }
+
+// function buildTestsSync(){
+//   var dirs = fs.readdirSync(unitTestsPath());
+// //  console.log('data.bases', data.bases);
+//   data.bases.map(function(basename){
+//     var headers = testRunner
+//           .build(unitTestsPath() +
+//                  basename +
+//                  '.c',
+//                  compilerBuildPath() +
+//                  createRunnerName(basename));
+//     data.headers = data.headers.concat(headers);
+// //    console.log('data.headers', data.headers);
+//   });
+// }
+
+// function spawnRunner(details, basename, reporter){
+//  spawner.run(details, basename, 0, reporter);
+//};
 
 function buildUnity(){
   var details = [];
@@ -160,6 +234,28 @@ function buildUnity(){
   details.push(compilerExec());
   details.push(runnerExecArgs());
   spawnRunner(details, basename, function(){});
+  return awaitFileExistance(cfg.compiler.build_path + cfg.runner.object + '');
+}
+
+function buildRequisiteCFiles(){
+  var details = [];
+  var basename;
+//  console.log('data.includedCFiles', data.includedCFiles)
+  return new Promise(function(resolve, reject){
+    if(data.includedCFiles.length < 1){
+      resolve('no files');
+//      console.log('NO FILES');
+    }
+    else {
+      data.includedCFiles.map(function(inc){
+        basename = path.basename(inc, '.c');
+        details.push(compilerExec());
+        details.push(requisiteCArgs(basename));
+        spawner.run(details, basename, 0, resolve);
+      });
+    }
+  });
+//  data.includedCFiles = [];
 }
 
 function buildRunners(basename, reporter){
@@ -296,8 +392,8 @@ function objectPrefix(){
 function includes(args){
   return args.concat(args, includesItems()
                      .map(function(cV){
-    return(includesPrefix() + cV);
-  }));
+                       return(includesPrefix() + cV);
+                     }));
 }
 
 function compilerOptions(){
@@ -326,7 +422,7 @@ function objectFilesPath(){
 
 function objectDestination(name){
   return (cfg.linker.bin_files.prefix + cfg.linker.bin_files.destination
-    + name + cfg.linker.bin_files.extension);
+          + name + cfg.linker.bin_files.extension);
 }
 
 function linkerDestination(name){
@@ -358,19 +454,22 @@ function runnerName(){
 
 //todo
 function linkerDetails(basename){
-  return ['-lm',
-          '-m64',
-          '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/file_1.o',
-          objectPath(cfg.runner.name),
-          objectPath(basename),
-          objectPath(basename + runnerName()),
-          objectDestination(basename)];
+  details = ['-lm',
+             '-m64'];
+  if(data.includedCFiles.length > 0){
+    details.push('/Users/martyn/_unity_quick_setup/dev/Unity/test/build/file_1.o');
+  }
+  details.push(objectPath(cfg.runner.name),
+               objectPath(basename),
+               objectPath(basename + runnerName()),
+               objectDestination(basename));
+  return details;
 }
 
 function cleanSync()
 {
   clean.clean(compilerBuildPath());
-//    setTimeout(resolve, interval);
+  //    setTimeout(resolve, interval);
 }
 
 this.runTests();

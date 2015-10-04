@@ -70,5 +70,6 @@ cfg.mocha.reporter = 'spec';
 cfg.mocha.reporter = 'min';
 cfg.mocha.reporter = 'progress';
 
-cfg.color = false;
+cfg.noBar  = false;
+cfg.color  = false;
 cfg.runner = cfg.unity;

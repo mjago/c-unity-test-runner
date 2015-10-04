@@ -13,21 +13,28 @@ exports.run = function (details, basename, runCount, reporter){
   var resultsFile = createResultsStream(basename);
   var cmd = details.shift();
   var args = details.shift();
+//  console.log('in spawner');
 //  console.log('cmd', cmd);
 //  console.log('args', args);
   var child = spawn(cmd, args);
-
+//  console.log('spawned', cmd, args);
   prg.update('spawner', runCount);
   child.stdout.pipe(resultsFile);
 
   resultsFile.on('finish', function() {
+    if(dbg.flags.log_finish){
+      console.log(clc.green(runCount, 'finish: ', basename));
+    }
+
     if(killed){
       return;
     }
     else if(details.length > 0) {
+//      console.log('> 0');
       exports.run(details, basename, ++runCount, reporter);
     }
     else{
+//      console.log('== 0');
       reporter();
     }
   });
