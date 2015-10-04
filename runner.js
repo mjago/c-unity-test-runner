@@ -13,7 +13,7 @@ var cfg             = require("./gcc.js");
 var dbg             = require('./debug.js');
 var report          = require('./report');
 var clean           = require('./clean');
-var data            = {testFiles: [], headers: [], includedCFiles: [], bases: []};
+var data            = {headers: [], includedCFiles: [], bases: []};
 var mocha           = new Mocha();
 var testFileSize    = 0;
 var filesProcessed  = 0;
@@ -26,12 +26,13 @@ exports.runTests = function(){
       return findTests();
     })
     .then(findTests())
-  //    .then(function(resolution){
-  //      console.log('resolution', resolution);
-  //      return findTests();
-  //    })
-    .then(buildTestsSync())
-    .then(function(resolve){
+//    .then(function(resolution){
+//      console.log('resolution', resolution);
+//      return findTests();
+//    })
+    .then(function(res){
+      console.log('res', res);
+      buildTestsSync();
       findRequisiteCFiles();
       buildRequisiteCFiles()
     })
@@ -43,7 +44,7 @@ exports.runTests = function(){
       if(error) console.log('Error:', error);
     });
 };
-
+ 
 function awaitFileExistance(file){
 //  console.log(file)
   var x = 0;
@@ -111,19 +112,16 @@ function testDefine(){
  
 function findTests(){
   return new Promise(function(resolve, reject){
-    fs.readdir(unitTestsPath(), function(err, files){
+    var files = fs.readdir(unitTestsPath(), function(err, files){
       if(err){
         console.log('rejected')
         reject("Error: Can't find tests:", err);
       }
       else{
-        data.testFiles = files;
         var filenames  = getTestFilenames(files);
-//        console.log('filenames',filenames);
-        console.log('filenames');
         var foundCount = 0;
         data.bases     = basenames(filenames);
-        console.log('data.bases', data.bases)
+//        console.log('data.bases', data.bases)
         testFileSize = data.bases.length;
         bar.init(testFileSize);
         console.log('accepted')
@@ -187,45 +185,23 @@ function removeIncludeMarkers(header){
 }
 
 function buildTestsSync(){
-  return new Promise(function(resolve, reject){
-    data.bases.map(function(basename){
-      console.log('data.bases', data.bases);
-      var headers = testRunner
-            .build(unitTestsPath() +
-                   basename +
-                   '.c',
-                   compilerBuildPath() +
-                   createRunnerName(basename));
-      data.headers = data.headers.concat(headers);
-    });
-    console.log('data.bases', data.bases);
-    console.log('data.headers', data.headers);
-    resolve();
+  var dirs = fs.readdirSync(unitTestsPath());
+//  console.log('data.bases', data.bases);
+  data.bases.map(function(basename){
+    var headers = testRunner
+          .build(unitTestsPath() +
+                 basename +
+                 '.c',
+                 compilerBuildPath() +
+                 createRunnerName(basename));
+    data.headers = data.headers.concat(headers);
+//    console.log('data.headers', data.headers);
   });
 }
 
 function spawnRunner(details, basename, reporter){
   spawner.run(details, basename, 0, reporter);
 }
-
-// function buildTestsSync(){
-//   var dirs = fs.readdirSync(unitTestsPath());
-// //  console.log('data.bases', data.bases);
-//   data.bases.map(function(basename){
-//     var headers = testRunner
-//           .build(unitTestsPath() +
-//                  basename +
-//                  '.c',
-//                  compilerBuildPath() +
-//                  createRunnerName(basename));
-//     data.headers = data.headers.concat(headers);
-// //    console.log('data.headers', data.headers);
-//   });
-// }
-
-// function spawnRunner(details, basename, reporter){
-//  spawner.run(details, basename, 0, reporter);
-//};
 
 function buildUnity(){
   var details = [];
