@@ -35,16 +35,19 @@ exports.count = function(count, final) {
   }
 };
 
-exports.voidFound = function(buffer) {
-  if(flags.debug && flags.voidFound) {
-    console.log('voidFound', 'buffer:', buffer);
+var printBufMaybe = function(flag, buffer){
+  if(flags.debug && flags[flag]){
+    console.log(flag, 'buffer:', buffer);
   }
 };
 
+
+exports.voidFound = function(buffer) {
+  printBufMaybe('voidFound', buffer);
+};
+
 exports.scan = function(buffer) {
-  if(flags.debug && flags.scan) {
-    console.log('scan', 'buffer:', buffer);
-  }
+  printBufMaybe('scan', buffer);
 };
 
 exports.building = function(base) {
