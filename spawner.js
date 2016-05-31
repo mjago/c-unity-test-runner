@@ -56,25 +56,26 @@ exports.run = function (details, basename, runCount, reporter){
   //    console.log('data', data);
   //  });
 
-  child.on('exit', function (data) {
-    if(data === 0)
-    {
-      if(dbg.flags.log_exit){
-        console.log(clc.green(runCount, 'exit: ' + data, basename));
-      }
+  function printDebugColoured(color, txt){
+    console.log(clc[color](runCount, txt + ': ' + data, basename));
+  }
+
+  function printDebugMaybe(dbg, txt){
+    if(dbg.flags.log_exit){
+      if(data === 0)
+        printDebugColoured('green', txt);
+      else
+        printDebugColoured('red', txt);
     }
-    else
-    {
-      if(dbg.flags.log_exit){
-        console.log(clc.red(runCount, 'exit: ' + data, basename));
-      }
-    }
+  }
+
+  child.on('exit', function (data){
+    printDebugMaybe(dbg, 'exit');
   });
 
   child.on('close', function (data) {
-    if(dbg.flags.log_close){
-      console.log(clc.green(runCount, 'close: ' + data, basename));
-    }
+    if(dbg.flags.log_close)
+      printDebugColoured('green', 'close')
   });
 };
 

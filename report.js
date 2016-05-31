@@ -72,17 +72,24 @@ function beginsWithTest(str){
   }
 }
 
+function testFilename_str(test) {
+  var results = test.results[count];
+  return results[0][0][0][0] +
+    results[0][0][1].join('') +
+    results[0][1].join('');
+}
+
+function testLinenum_str(test){
+  var results = test.results[count];
+  return results[0][3][0] +
+    results[0][3][1].join('');
+}
+
 function parseFail(test, count){
   //console.log('parseFail');
 
-  var results = test.results[count];
-  test.fileName = results[0][0][0][0]
-    + results[0][0][1].join('')
-    + results[0][1].join('');
-  //console.log('\nfileName', test.fileName);
-
-  test.lineNum = results[0][3][0] +
-    results[0][3][1].join('');
+  test.fileName = testFilename_str(test);
+  test.lineNum = testLinenum_str(test);
   //console.log('lineNum', test.lineNum);
 
   test.testName = results[0][5] +
@@ -134,13 +141,9 @@ function parseLong(test, count){
   //console.log('parseLong');
   //console.log('count', count);
   var results = test.results[count];
-  test.fileName = results[0][0][0][0] +
-    results[0][0][1].join('') +
-    results[0][1].join('');
-  //console.log('fileName', test.fileName);
 
-  test.lineNum = results[0][3][0] +
-    results[0][3][1].join('');
+  test.fileName = testFilename_str(test);
+  test.lineNum = testLinenum_str(test);
   //console.log('lineNum', test.lineNum);
 
   test.testName = results[0][5] +
