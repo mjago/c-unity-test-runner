@@ -63,15 +63,15 @@ exports.startTimer = function(base){
   if(flags.log_timers){
     console.time(base);
   }
-}
+};
 
 exports.stopTimer = function(name) {
   if(flags.log_timers){
     console.timeEnd(name);
-  };
-}
+  }
+};
 
 exports.log = function(type, msg){
   if(flags[type])
     console.log(msg);
-}
+};

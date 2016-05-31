@@ -56,14 +56,13 @@ function awaitFileExistance(file){
         clearInterval(int);
         //        console.log('x === 200',x );
         reject('Error: timed out!');
-         ;
       }
       fs.lstat(file,
                function(err, stats) {
                  if(!err && stats.isFile()) {
                    resolve('resolved');
                    clearInterval(int);
-                 };
+                 }
                });
     }, 10);
   });
@@ -102,14 +101,14 @@ function testDefine(){
           cfg.compiler.test_define];
 }
 
- function findTests(){
-   var files      = fs.readdirSync(unitTestsPath());
-   var filenames  = getTestFilenames(files);
-   var foundCount = 0;
-   data.bases     = basenames(filenames);
-   testFileSize = data.bases.length;
-   bar.init(testFileSize);
- }
+// function findTests(){
+//   var files      = fs.readdirSync(unitTestsPath());
+//   var filenames  = getTestFilenames(files);
+//   var foundCount = 0;
+//   data.bases     = basenames(filenames);
+//   testFileSize = data.bases.length;
+//   bar.init(testFileSize);
+// }
 
 function findTests(res){
   return new Promise(function(resolve, reject){
@@ -155,10 +154,10 @@ function reporter(base){
 }
 
 function mochaRunMaybe(){
-  if(++filesProcessed == testFileSize){
+  if(++filesProcessed === testFileSize){
     dbg.log('resultJS', 'running Mocha');
     mochaRun();
-  };
+  }
 }
 
 function mochaRun(){
@@ -167,7 +166,7 @@ function mochaRun(){
     reporter(cfg.mochaReporter).
     run(function(failures){
       process.on('exit', function() {
-        process.exit(failures);
+        return;
       });
     });
 }
@@ -186,6 +185,12 @@ function removeIncludeMarkers(header){
 
 function buildTestsSync(){
   return new Promise(function(resolve, reject){
+    var checkLength = function(){
+      if(count === data.bases.length - 1){
+        resolve();
+      }
+    };
+
     for(var count = 0; count < data.bases.length; count++){
       var basename = data.bases[count];
       var headers = testRunner
@@ -194,11 +199,7 @@ function buildTestsSync(){
                    '.c',
                    cfg.compilerBuildPath +
                    createRunnerName(basename),
-                   function(){
-                     if(count === data.bases.length - 1){
-                       resolve();
-                     }
-                   });
+                   checkLength);
       data.headers = data.headers.concat(headers);
     }
   });
@@ -269,7 +270,6 @@ function sourceArgs(basename){
 
 function runnerArgs(basename){
   return outputR(basename, sourceR(basename, options(includes(defines()))));
-  return details;
 }
 
 function objectPath(name){
@@ -435,7 +435,7 @@ module.exports = {
   compilerBuildPath: cfg.compilerBuildPath,
   sourceFilesExtension: cfg.sourceFilesExtension,
   objectFilesExtension: cfg.objectFilesExtension,
-  objectFilesPath: cfg.objectFilesPath,
+  objectFilesPath: cfg.objectFilesPath
 };
 
 module.exports.run = run

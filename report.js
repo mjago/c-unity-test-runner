@@ -35,8 +35,8 @@ exports.run = function(basename){
     else if((typeof test.results[count] !== 'undefined')
             && test.results[count]
             && util.isArray(test.results[count])){
-      if(test.results[count][0][0][0][0] == 'test' ||
-         test.results[count][0][0][0][0] == 'Test') {
+      if(test.results[count][0][0][0][0] === 'test' ||
+         test.results[count][0][0][0][0] === 'Test') {
         if(test.results[count][0][4]){
           parseLong(test, count);
         }
@@ -45,8 +45,8 @@ exports.run = function(basename){
           parseFail(test, count);
         }
       }
-      else if(test.results[count][0][0][0] == 'test' ||
-              test.results[count][0][0][0] == 'Test'){
+      else if(test.results[count][0][0][0] === 'test' ||
+              test.results[count][0][0][0] === 'Test'){
         parseShort(test, count);
       }
       else
@@ -182,7 +182,7 @@ function parseLong(test, count){
     //console.log('result', result);
     var actualResult = result.slice(-4);
     //console.log('actualResult', actualResult);
-    if((actualResult == 'PASS') || (actualResult === 'FAIL')) {
+    if((actualResult === 'PASS') || (actualResult === 'FAIL')) {
       test.testResult = actualResult;
     }
     else{
@@ -269,7 +269,7 @@ function writeTest(test){
     writeFail(test);
   }
 
-  else if(test.testResult == 'IGNORE'){
+  else if(test.testResult === 'IGNORE'){
     writeIgnore(test);
   }
 

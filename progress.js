@@ -24,6 +24,6 @@ exports.init = function(count){
 
 exports.update = function(id, args){
   if(cfg.noBar) return;
-  if(id == 'spawner' &&((args < 1) || (args > 3))) return;
+  if(id === 'spawner' &&((args < 1) || (args > 3))) return;
   bar.tick();
 };

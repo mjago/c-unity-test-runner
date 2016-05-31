@@ -57,8 +57,6 @@ exports.run = function (details, basename, runCount, reporter){
   //  });
 
   child.on('exit', function (data) {
-    if( ! (details.length > 0)) {
-    };
     if(data === 0)
     {
       if(dbg.flags.log_exit){

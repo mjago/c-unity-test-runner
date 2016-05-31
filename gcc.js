@@ -6,9 +6,9 @@ var yaml = require('js-yaml'),
     loadYamlConfig = function(callback) {
       try {
         cfg = yaml.safeLoad(fs.readFileSync('./gcc_32.yml', 'utf8'));
-        callback(null, cfg);
+        return callback(null, cfg);
       } catch (e) {
-        callback(e, null);
+        return callback(e, null);
       }
     };
 
@@ -16,10 +16,7 @@ loadYamlConfig(function(err, cfg){
   if(err) {
     console.log('Error loading config: ', err);
     cfg = null;
-    process.exit(1);
-  }
-  else {
-//    cfg = data;
+    throw('Error loading config:', err); //FIXME process.exit(1);
   }
 });
 
