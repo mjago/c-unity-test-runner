@@ -38,21 +38,21 @@ describe('test compilation string generation', function() {
     });
   });
 
-  describe('compilerExec()', function(){
+  describe('compilerExec', function(){
     it('should return string', function(){
-      assert.isString(runner.compilerExec());
+      assert.isString(runner.compilerExec);
     });
     it('should return "gcc"', function(){
-      assert.deepEqual('gcc', runner.compilerExec());
+      assert.deepEqual('gcc', runner.compilerExec);
     });
   });
 
-  describe('linkerExec()', function(){
+  describe('linkerExec', function(){
     it('should return string', function(){
-      assert.isString(runner.linkerExec());
+      assert.isString(runner.linkerExec);
     });
     it('should return "gcc"', function(){
-      assert.deepEqual('gcc', runner.linkerExec());
+      assert.deepEqual('gcc', runner.linkerExec);
     });
   });
 
@@ -217,13 +217,13 @@ describe('test compilation string generation', function() {
     });
   });
 
-  describe('unitTestsPath()', function(){
+  describe('unitTestsPath', function(){
     //todo multiple test directories
     it('should return string', function(){
-      assert.isString(runner.unitTestsPath());
+      assert.isString(runner.unitTestsPath);
     });
     it('should return correct path to tests', function(){
-      assert.deepEqual(unityRoot + 'test/tests/', runner.unitTestsPath());
+      assert.deepEqual(unityRoot + 'test/tests/', runner.unitTestsPath);
     });
   });
 
@@ -293,13 +293,13 @@ describe('test compilation string generation', function() {
 
   describe('definesItems', function(){
     it('should return array', function(){
-      assert.isArray(runner.definesItems());
+      assert.isArray(runner.definesItems);
     });
     it('should return array with "UNITY_INCLUDE_DOUBLE" as 1st element', function(){
-      assert.deepEqual("UNITY_INCLUDE_DOUBLE",runner.definesItems()[0]);
+      assert.deepEqual("UNITY_INCLUDE_DOUBLE",runner.definesItems[0]);
     });
     it('should return array with "UNITY_SUPPORT_TEST_CASES" as 2nd element', function(){
-      assert.deepEqual("UNITY_SUPPORT_TEST_CASES",runner.definesItems()[1]);
+      assert.deepEqual("UNITY_SUPPORT_TEST_CASES",runner.definesItems[1]);
     });
   });
 
@@ -317,43 +317,43 @@ describe('test compilation string generation', function() {
 
   describe('includesItems', function(){
     it('should return array', function(){
-      assert.isArray(runner.includesItems());
+      assert.isArray(runner.includesItems);
     });
     it('should return 1st element having path root/src/', function(){
-      assert.deepEqual(unityRoot + "src/",runner.includesItems()[0]);
+      assert.deepEqual(unityRoot + "src/",runner.includesItems[0]);
     });
     it('should return 2nd element having path root/test/tests/', function(){
-      assert.deepEqual(unityRoot + "test/tests/",runner.includesItems()[1]);
+      assert.deepEqual(unityRoot + "test/tests/",runner.includesItems[1]);
     });
     it('should return 3rd element having path root/dev/Unity/src/', function(){
-      assert.deepEqual(prjRoot + "src/",runner.includesItems()[2]);
+      assert.deepEqual(prjRoot + "src/",runner.includesItems[2]);
     });
   });
 
   describe('includesPrefix', function(){
     it('should return string', function(){
-      assert.isString(runner.includesPrefix());
+      assert.isString(runner.includesPrefix);
     });
     it('should return includes prefix -I ', function(){
-      assert.deepEqual('-I',runner.includesPrefix());
+      assert.deepEqual('-I',runner.includesPrefix);
     });
   });
 
   describe('definesPrefix', function(){
     it('should return string', function(){
-      assert.isString(runner.definesPrefix());
+      assert.isString(runner.definesPrefix);
     });
     it('should return defines prefix -D ', function(){
-      assert.deepEqual('-D',runner.definesPrefix());
+      assert.deepEqual('-D',runner.definesPrefix);
     });
   });
 
   describe('objectPrefix', function(){
     it('should return string', function(){
-      assert.isString(runner.objectPrefix());
+      assert.isString(runner.objectPrefix);
     });
     it('should return object prefix -o ', function(){
-      assert.deepEqual('-o',runner.objectPrefix());
+      assert.deepEqual('-o',runner.objectPrefix);
     });
   });
 
@@ -371,61 +371,61 @@ describe('test compilation string generation', function() {
 
   describe('compilerOptions', function(){
     it('should return array', function(){
-      assert.isArray(runner.compilerOptions());
+      assert.isArray(runner.compilerOptions);
     });
     it('should return -c as 1st element', function(){
-      assert.deepEqual('-c',runner.compilerOptions([])[0]);
+      assert.deepEqual('-c',runner.compilerOptions[0]);
     });
     it('should return -m64 as 2nd element', function(){
-      assert.deepEqual('-m64', runner.compilerOptions([])[1]);
+      assert.deepEqual('-m64', runner.compilerOptions[1]);
     });
     it('should return -Wall as 2nd element', function(){
-      assert.deepEqual('-Wall', runner.compilerOptions([])[2]);
+      assert.deepEqual('-Wall', runner.compilerOptions[2]);
     });
   });
 
   describe('compilerObjectFilesDest', function(){
     it('should return string', function(){
-      assert.isString(runner.compilerObjectFilesDest());
+      assert.isString(runner.compilerObjectFilesDest);
     });
     it('should return object files destination directory', function(){
-      assert.deepEqual(unityRoot + 'test/build/',runner.compilerObjectFilesDest());
+      assert.deepEqual(unityRoot + 'test/build/',runner.compilerObjectFilesDest);
     });
   });
 
   describe('compilerBuildPath', function(){
     it('should return string', function(){
-      assert.isString(runner.compilerBuildPath());
+      assert.isString(runner.compilerBuildPath);
     });
     it('should return build directory', function(){
-      assert.deepEqual(unityRoot + 'test/build/',runner.compilerBuildPath());
+      assert.deepEqual(unityRoot + 'test/build/',runner.compilerBuildPath);
     });
   });
 
   describe('sourceFilesExtension', function(){
     it('should return string', function(){
-      assert.isString(runner.sourceFilesExtension());
+      assert.isString(runner.sourceFilesExtension);
     });
     it('should return source files extension', function(){
-      assert.deepEqual('.c',runner.sourceFilesExtension());
+      assert.deepEqual('.c',runner.sourceFilesExtension);
     });
   });
 
   describe('objectFilesExtension', function(){
     it('should return string', function(){
-      assert.isString(runner.objectFilesExtension());
+      assert.isString(runner.objectFilesExtension);
     });
     it('should return object files extension', function(){
-      assert.deepEqual('.o',runner.objectFilesExtension());
+      assert.deepEqual('.o',runner.objectFilesExtension);
     });
   });
 
   describe('objectFilesPath', function(){
     it('should return string', function(){
-      assert.isString(runner.objectFilesPath());
+      assert.isString(runner.objectFilesPath);
     });
     it('should return object files path', function(){
-      assert.deepEqual(unityRoot + 'test/build/',runner.objectFilesPath());
+      assert.deepEqual(unityRoot + 'test/build/',runner.objectFilesPath);
     });
   });
 
@@ -480,10 +480,10 @@ describe('test compilation string generation', function() {
 
   describe('runnerName', function(){
     it('should return string', function(){
-      assert.isString(runner.runnerName());
+      assert.isString(runner.runnerName);
     });
     it('should return _Runner postfix', function(){
-      assert.deepEqual('_Runner',runner.runnerName());
+      assert.deepEqual('_Runner',runner.runnerName);
     });
   });
 

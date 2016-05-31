@@ -1,0 +1,92 @@
+---
+
+project:
+  root: '/Users/martyn/_unity_quick_setup/'
+testLib:
+  name: 'Unity'
+  runnerName: '_Runner'
+  object: 'unity.o'
+  runner_suffix: '_Runner.c'
+  object_suffix: '_Runner.o'
+  sourceName: 'unity.c'
+  source_path: '/Users/martyn/_unity_quick_setup/dev/Unity/src/'
+  plugins: []
+
+compiler:
+  path: ''
+  exec: 'gcc'
+  unit_tests_path: '/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/'
+  build_path:  '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/'
+  options:
+    - '-c'
+    - '-m64'
+    - '-Wall'
+    - '-Wno-address'
+    - '-std=c99'
+    - '-pedantic'
+    - '-Wextra'
+    - '-Werror'
+    - '-Wpointer-arith'
+    - '-Wcast-align'
+    - '-Wwrite-strings'
+    - '-Wswitch-default'
+    - '-Wunreachable-code'
+    - '-Winit-self'
+    - '-Wmissing-field-initializers'
+    - '-Wno-unknown-pragmas'
+    - '-Wstrict-prototypes'
+    - '-Wundef'
+    - '-Wold-style-definition'
+  test_define: 'TEST'
+  includes:
+    prefix: '-I'
+    items:
+      - '/Users/martyn/_unity_quick_setup/dev/Unity/src/'
+      - '/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/'
+      - '/Users/martyn/_unity_quick_setup/src/'
+  defines:
+    prefix: '-D'
+    items:
+      - 'UNITY_INCLUDE_DOUBLE'
+      - 'UNITY_SUPPORT_TEST_CASES'
+      - 'UNITY_SUPPORT_64'
+  source_files:
+    extension: '.c'
+    path: '/Users/martyn/_unity_quick_setup/dev/Unity/src/'
+  object_files:
+    prefix: '-o'
+    extension: '.o'
+    destination: '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/'
+
+linker:
+  path: ''
+  exec: 'gcc'
+  options:
+    - '-lm'
+    - '-m64'
+  includes:
+    prefix: '-I'
+  object_files:
+    path: '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/'
+    extension: '.o'
+  bin_files:
+    prefix: '-o'
+    extension: '.exe'
+    destination: '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/'
+
+mocha:
+  ui: 'tdd'
+  reporter: 'nyan'
+
+noBar: false
+
+color: true
+
+runner:
+  name: 'unity'
+  object: 'unity.o'
+  runner_suffix: '_Runner.c'
+  object_suffix: '_Runner.o'
+  sourceName: 'unity.c'
+  source_path: '/Users/martyn/_unity_quick_setup/dev/Unity/src/'
+  plugins: []

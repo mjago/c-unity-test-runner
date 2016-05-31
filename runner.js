@@ -1,52 +1,55 @@
-var Promise = require('bluebird');
-var fs = Promise.promisifyAll(require('fs'));
-var _               = require('lodash');
-//var fs              = require('fs');
-var path            = require('path');
-var Mocha           = require('mocha');
-var sys             = require('sys');
-var clc             = require('cli-color');
-var bar             = require('./progress.js');
-var testRunner      = require('./build_test_runner.js');
-var spawner         = require('./spawner.js');
-var cfg             = require("./gcc.js");
-var dbg             = require('./debug.js');
-var report          = require('./report');
-var clean           = require('./clean');
-var data            = {headers: [], includedCFiles: [], bases: []};
-var mocha           = new Mocha();
-var testFileSize    = 0;
-var filesProcessed  = 0;
+var Promise = require('bluebird'),
+    fs              = require('fs'),
+    _               = require('lodash'),
+    path            = require('path'),
+    Mocha           = require('mocha'),
+    clc             = require('cli-color'),
+    bar             = require('./progress.js'),
+    testRunner      = require('./build_test_runner.js'),
+    spawner         = require('./spawner.js'),
+    cfg             = require("./gcc.js"),
+    dbg             = require('./debug.js'),
+    report          = require('./report'),
+    clean           = require('./clean'),
+    data            = {headers: [], includedCFiles: [], bases: []},
+    mocha           = new Mocha(),
+    testFileSize    = 0,
+    filesProcessed  = 0,
+    moment          = require('moment');
+
 
 exports.runTests = function(){
   cleanSync();
+  console.log('building unity');
   buildUnity()
-    .then(function(resolution){
-      console.log('resolution', resolution);
+    .then(function(res){
+      console.log(moment().format("hh.mm.ss"), 'finding tests');
       return findTests();
     })
-    .then(findTests())
-//    .then(function(resolution){
-//      console.log('resolution', resolution);
-//      return findTests();
-//    })
     .then(function(res){
-      console.log('res', res);
-      buildTestsSync();
-      findRequisiteCFiles();
-      buildRequisiteCFiles()
+      console.log(moment().format("hh.mm.ss"), 'building tests');
+      return buildTestsSync();
     })
     .then(function(res){
-      //      console.log('res', res);
-      buildTests();
+      console.log('\n', moment().format("hh.mm.ss"), 'finding files');
+      return findRequisiteCFiles();
+    })
+    .then(function(res){
+      console.log(moment().format("hh.mm.ss"), 'building requisites');
+      return buildRequisiteCFiles();
+    })
+    .then(function(res){
+      console.log(moment().format("hh.mm.ss"), 'building tests 2');
+      return buildTests();
     })
     .catch(function(error){
+      console.log(moment().format("hh.mm.ss"), '*** CAUGHT ERROR! ***');
       if(error) console.log('Error:', error);
     });
 };
- 
+
 function awaitFileExistance(file){
-//  console.log(file)
+  console.log(file);
   var x = 0;
   return new Promise(function(resolve, reject){
     var int = setInterval(function(){
@@ -69,7 +72,7 @@ function awaitFileExistance(file){
 }
 
 function findRequisiteCFiles(){
-  var dirs    = cfg.compiler.includes.items,
+  var dirs    = cfg.includesItems,
       cFiles  = [],
       headers = [];
   headers = _.uniq(headers.concat.apply([], data.headers));
@@ -97,7 +100,7 @@ function requisiteCArgs(cFile){
 }
 
 function testDefine(){
-  return [cfg.compiler.defines.prefix +
+  return [cfg.definesPrefix +
           cfg.compiler.test_define];
 }
 
@@ -109,10 +112,10 @@ function testDefine(){
 //   testFileSize = data.bases.length;
 //   bar.init(testFileSize);
 // }
- 
-function findTests(){
+
+function findTests(res){
   return new Promise(function(resolve, reject){
-    var files = fs.readdir(unitTestsPath(), function(err, files){
+    var files = fs.readdir(cfg.unitTestsPath, function(err, files){
       if(err){
         console.log('rejected')
         reject("Error: Can't find tests:", err);
@@ -124,7 +127,6 @@ function findTests(){
 //        console.log('data.bases', data.bases)
         testFileSize = data.bases.length;
         bar.init(testFileSize);
-        console.log('accepted')
         resolve('found');
       }
     });
@@ -163,8 +165,8 @@ function mochaRunMaybe(){
 
 function mochaRun(){
   mocha.
-    ui(cfg.mocha.ui).
-    reporter(cfg.mocha.reporter).
+    ui(cfg.mochaUI).
+    reporter(cfg.mochaReporter).
     run(function(failures){
       process.on('exit', function() {
         process.exit(failures);
@@ -174,7 +176,7 @@ function mochaRun(){
 
 function mochaAddFile(base){
   mocha.addFile(
-    path.join(compilerBuildPath(), base + '.js'));
+    path.join(cfg.compilerBuildPath, base + '.js'));
 }
 
 function removeIncludeMarkers(header){
@@ -185,17 +187,22 @@ function removeIncludeMarkers(header){
 }
 
 function buildTestsSync(){
-  var dirs = fs.readdirSync(unitTestsPath());
-//  console.log('data.bases', data.bases);
-  data.bases.map(function(basename){
-    var headers = testRunner
-          .build(unitTestsPath() +
-                 basename +
-                 '.c',
-                 compilerBuildPath() +
-                 createRunnerName(basename));
-    data.headers = data.headers.concat(headers);
-//    console.log('data.headers', data.headers);
+  return new Promise(function(resolve, reject){
+    for(var count = 0; count < data.bases.length; count++){
+      var basename = data.bases[count];
+      var headers = testRunner
+            .build(cfg.unitTestsPath +
+                   basename +
+                   '.c',
+                   cfg.compilerBuildPath +
+                   createRunnerName(basename),
+                   function(){
+                     if(count === data.bases.length - 1){
+                       resolve();
+                     }
+                   });
+      data.headers = data.headers.concat(headers);
+    }
   });
 }
 
@@ -207,10 +214,10 @@ function buildUnity(){
   var details = [];
   var basename = 'unity';
   var reporter = null;
-  details.push(compilerExec());
+  details.push(cfg.compilerExec);
   details.push(runnerExecArgs());
   spawnRunner(details, basename, function(){});
-  return awaitFileExistance(cfg.compiler.build_path + cfg.runner.object + '');
+  return awaitFileExistance(cfg.compilerBuildPath + cfg.runner.object + '');
 }
 
 function buildRequisiteCFiles(){
@@ -225,7 +232,7 @@ function buildRequisiteCFiles(){
     else {
       data.includedCFiles.map(function(inc){
         basename = path.basename(inc, '.c');
-        details.push(compilerExec());
+        details.push(cfg.compilerExec);
         details.push(requisiteCArgs(basename));
         spawner.run(details, basename, 0, resolve);
       });
@@ -236,11 +243,11 @@ function buildRequisiteCFiles(){
 
 function buildRunners(basename, reporter){
   var details = []; // runnerExecDetailsMaybe(count);
-  details.push(compilerExec());
+  details.push(cfg.compilerExec);
   details.push(sourceArgs(basename));
-  details.push(compilerExec());
+  details.push(cfg.compilerExec);
   details.push(runnerArgs(basename));
-  details.push(linkerExec());
+  details.push(cfg.linkerExec);
   details.push(linkerDetails(basename));
   details.push(linkerDestination(basename));//compilerBuildPath() + basename + '.exe');
   spawnRunner(details, basename, reporter);
@@ -249,17 +256,9 @@ function buildRunners(basename, reporter){
 function runnerExecDetailsMaybe(count){
   var details = [];
   if(count > 0) return details;
-  details.push(compilerExec());
+  details.push(cfg.compilerExec);
   details.push(runnerExecArgs());
   return details;
-}
-
-function compilerExec(){
-  return cfg.compiler.path + cfg.compiler.exec;
-}
-
-function linkerExec(){
-  return cfg.linker.path + cfg.linker.exec;
 }
 
 function runnerExecArgs(){
@@ -276,7 +275,7 @@ function runnerArgs(basename){
 }
 
 function objectPath(name){
-  return (objectFilesPath() + name + objectFilesExtension());
+  return (cfg.objectFilesPath + name + cfg.objectFilesExtension);
 }
 
 function isTestFile(name){
@@ -304,96 +303,48 @@ function basenames(files){
   return testFiles;
 }
 
-function unitTestsPath(){
-  return cfg.compiler.unit_tests_path;
-}
-
 function outputR(basename, args) {
-  args.push(objectPrefix() +
-            compilerObjectFilesDest() +
+  args.push(cfg.objectPrefix +
+            cfg.compilerObjectFilesDest +
             basename + '_Runner.o');
   return args;
 }
 
 function sourceR(basename, args){
-  args.push(compilerBuildPath() +
+  args.push(cfg.compilerBuildPath +
             basename + '_Runner.c');
   return args;
 }
 
 function output(basename, args) {
-  args.push(objectPrefix() +
-            compilerObjectFilesDest() +
-            basename + objectFilesExtension());
+  args.push(cfg.objectPrefix +
+            cfg.compilerObjectFilesDest +
+            basename + cfg.objectFilesExtension);
   return args;
 }
 
 function source(basename, args){
-  args.push(unitTestsPath() + basename +
-            sourceFilesExtension());
+  args.push(cfg.unitTestsPath + basename +
+            cfg.sourceFilesExtension);
   return args;
 }
 
 function options(args){
-  return args.concat(args, compilerOptions()
+  return args.concat(args, cfg.compilerOptions
                      .map(function(cV){return cV;}));
 }
 
-function definesItems(){
-  return(cfg.compiler.defines.items);
-}
-
 function defines(){
-  return definesItems().map(function(cV){
-    return(definesPrefix() + cV);
+  return cfg.definesItems.map(function(cV){
+    return(cfg.definesPrefix + cV);
   });
 }
 
-function includesItems(){
-  return(cfg.compiler.includes.items);
-}
-
-function includesPrefix(){
-  return(cfg.linker.includes.prefix);
-}
-
-function definesPrefix(){
-  return (cfg.compiler.defines.prefix);
-}
-
-function objectPrefix(){
-  return(cfg.compiler.object_files.prefix);
-}
-
 function includes(args){
-  return args.concat(args, includesItems()
+  return args.concat(args, cfg.includesItems
                      .map(function(cV){
-                       return(includesPrefix() + cV);
+                       return(cfg.includesPrefix + cV);
                      }));
-}
-
-function compilerOptions(){
-  return(cfg.compiler.options);
-}
-
-function compilerObjectFilesDest(){
-  return (cfg.compiler.object_files.destination);
-}
-
-function compilerBuildPath(){
-  return cfg.compiler.build_path;
-}
-
-function sourceFilesExtension(){
-  return cfg.compiler.source_files.extension;
-}
-
-function objectFilesExtension(){
-  return cfg.compiler.object_files.extension;
-}
-
-function objectFilesPath(){
-  return cfg.linker.object_files.path;
 }
 
 function objectDestination(name){
@@ -412,8 +363,8 @@ function runnerExecSource(args) {
 }
 
 function runnerExecOutput(args) {
-  args.push(objectPrefix() +
-            compilerBuildPath() +
+  args.push(cfg.objectPrefix +
+            cfg.compilerBuildPath +
             cfg.runner.object);
   return args;
 }
@@ -422,10 +373,6 @@ function createRunnerName(sourceName){
   var ext = path.extname(sourceName);
   var runner = sourceName + '_Runner.c';
   return runner;
-}
-
-function runnerName(){
-  return('_Runner');
 }
 
 //todo
@@ -437,15 +384,14 @@ function linkerDetails(basename){
   }
   details.push(objectPath(cfg.runner.name),
                objectPath(basename),
-               objectPath(basename + runnerName()),
+               objectPath(basename + cfg.runnerName),
                objectDestination(basename));
   return details;
 }
 
 function cleanSync()
 {
-  clean.clean(compilerBuildPath());
-  //    setTimeout(resolve, interval);
+  clean.clean(cfg.compilerBuildPath);
 }
 
 this.runTests();
@@ -455,8 +401,8 @@ module.exports = {
 
   removeIncludeMarkers: removeIncludeMarkers,
   runnerExecDetailsMaybe: runnerExecDetailsMaybe,
-  compilerExec: compilerExec,
-  linkerExec: linkerExec,
+  compilerExec: cfg.compilerExec,
+  linkerExec: cfg.linkerExec,
   runnerExecArgs: runnerExecArgs,
   requisiteCArgs: requisiteCArgs,
   sourceArgs: sourceArgs,
@@ -466,7 +412,7 @@ module.exports = {
   isCFile: isCFile,
   getTestFilenames: getTestFilenames,
   basenames: basenames,
-  unitTestsPath: unitTestsPath,
+  unitTestsPath: cfg.unitTestsPath,
   findTests: findTests,
   findRequisiteCFiles: findRequisiteCFiles,
   outputR: outputR,
@@ -474,24 +420,24 @@ module.exports = {
   output: output,
   source: source,
   options: options,
-  definesItems: definesItems,
   defines: defines,
-  includesItems: includesItems,
-  includesPrefix: includesPrefix,
-  definesPrefix: definesPrefix,
-  objectPrefix: objectPrefix,
   includes: includes,
-  compilerOptions: compilerOptions,
-  compilerObjectFilesDest: compilerObjectFilesDest,
-  compilerBuildPath: compilerBuildPath,
-  sourceFilesExtension: sourceFilesExtension,
-  objectFilesExtension: objectFilesExtension,
-  objectFilesPath: objectFilesPath,
   objectDestination: objectDestination,
   linkerDestination: linkerDestination,
   runnerExecSource: runnerExecSource,
   runnerExecOutput: runnerExecOutput,
   createRunnerName: createRunnerName,
-  runnerName: runnerName,
-  linkerDetails: linkerDetails
+  runnerName: cfg.runnerName,
+  linkerDetails: linkerDetails,
+  definesItems: cfg.definesItems,
+  includesItems: cfg.includesItems,
+  includesPrefix: cfg.includesPrefix,
+  definesPrefix: cfg.definesPrefix,
+  objectPrefix: cfg.objectPrefix,
+  compilerOptions: cfg.compilerOptions,
+  compilerObjectFilesDest: cfg.compilerObjectFilesDest,
+  compilerBuildPath: cfg.compilerBuildPath,
+  sourceFilesExtension: cfg.sourceFilesExtension,
+  objectFilesExtension: cfg.objectFilesExtension,
+  objectFilesPath: cfg.objectFilesPath,
 };

@@ -6,12 +6,12 @@ var flags = {
   //  , 'voidFound': true
   //'count': true
   //  , trace: true
-//   log_close: true
-//  , log_exit: true
-//  , log_finish: true
-  //, log_run: true
-  //, clean: true
-  //, log_build: true
+  //  log_close: true
+  // ,log_exit: true
+  // , log_finish: true
+  // , log_run: true
+  // , clean: true
+  // , log_build: true
   //, log_timers: true
   //  resultJS: true
 };

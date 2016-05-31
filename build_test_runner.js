@@ -8,10 +8,11 @@ var peg             = require('./peg.js'),
     flags           = {},
     testData        = {};
 
-exports.build = function(readStreamName, filename){
+exports.build = function(readStreamName, filename, callback){
   testData = resetData();
   parseUnitTests(readStreamName);
   prepareTests(readStreamName, filename);
+  callback();
   return testData.includes;
 };
 
@@ -153,7 +154,7 @@ function writeTests(writeBuf){
   return writeBuf;
 }
 
-function saveTest(line, test) {
+function saveTest(line, test){
   testData.tests.push(test);
   testData.lines.push(line);
 }

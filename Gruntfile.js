@@ -10,10 +10,14 @@ module.exports = function(grunt) {
   grunt.initConfig({
     shell: {
       options: {
-        stderr: false
+        execOptions: {
+          maxBuffer: Infinity
+        },
+        stderr: false,
+        prettyPrint: true
       },
       target: {
-        command: 'node runner.js'
+        command: 'node ./runner.js'
 //        command: 'mocha generate_parser.js'
       }
     },

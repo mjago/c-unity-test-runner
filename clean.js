@@ -6,22 +6,23 @@ module.exports.clean = function(path){
 };
 
 function rmDir(dirPath, removeSelf) {
+  var files;
   removeself = isRemoveSelf(removeSelf);
   try {
-    var files = getFileNames(dirPath);
+    files = getFileNames(dirPath);
   }
   catch(e) {
     return;
   }
   rmRecurse(files, dirPath, removeSelf);
-};
+}
 
 function isRemoveSelf(removeSelf) {
   return (removeSelf === undefined);
 }
 
 function rmRecurse(files, dirPath, removeSelf) {
-  if( ! files.length > 0) return;
+  if(files.length === 0) return;
 
   files.map(function(val) {
     dbg.log('clean', 'cleaning ' + val);
