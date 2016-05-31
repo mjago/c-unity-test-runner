@@ -89,12 +89,18 @@ function findRequisiteCFiles(){
   });
 }
 
+compiler:
+  path: ''
+  exec: 'gcc'
+  unit_tests_path: '/Users/martyn/_unity_quick_setup/dev/Unity/test/tests/'
+  build_path:  '/Users/martyn/_unity_quick_setup/dev/Unity/test/build/'
+
 function requisiteCArgs(cFile){
-  details = ['/Users/martyn/_unity_quick_setup/src/' + cFile + '.c']
+  details = [cfg.compiler.source_files.path + cFile + '.c']
     .concat(includes(defines()))
     .concat(testDefine())
     .concat(compilerOptions())
-    .concat(['-o/Users/martyn/_unity_quick_setup/dev/Unity/test/build/' + cFile + '.o']);
+    .concat([cfg.compiler.build_path + cFile + '.o']);
   return details;
 }
 

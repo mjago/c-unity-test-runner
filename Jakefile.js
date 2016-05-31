@@ -1,20 +1,25 @@
 util = require('util');
 
-desc('This is the default task.');
-task('default', [], function (params) {
-  console.log('default placeholder:');
-  console.log('arguments = ' + util.inspect(arguments));
+var reporter = ' --reporter progress';
+
+desc('Tasks (default)');
+task('default', {async: false}, function () {
+  console.log('Task List:');
+  var cmd = 'jake -T';
+  jake.exec(cmd, {printStdout: true, printStderr: true}, function () {
+//    complete();
+  });
 });
 
 desc('Test Jake:');
 task('testjake', {async: true}, function () {
   var cmds = [
-    'node /usr/local/lib/node_modules/jake/test/parseargs.js'
-  , 'node /usr/local/lib/node_modules/jake/test/task_base.js'
-  , 'node /usr/local/lib/node_modules/jake/test/file_task.js'
+    'node /usr/local/lib/node_modules/jake/test/parseargs.js'+ reporter,
+    'node /usr/local/lib/node_modules/jake/test/task_base.js'+ reporter,
+    'node /usr/local/lib/node_modules/jake/test/file_task.js'+ reporter
   ];
   jake.exec(cmds, {printStdout: true, printStderr: true}, function () {
-    console.log('Jake tests passed.');
+    console.log('Jake tests pass.');
     complete();
   });
 });
@@ -25,28 +30,23 @@ task('run', {async: false}, function () {
     'node ./runner.js'
   ];
   jake.exec(cmds, {printStdout: true, printStderr: true}, function () {
-//    complete();
+    complete();
   });
 });
 
 desc('Test C Unity Test Runner:');
 task('test', {async: false}, function () {
   var cmds = [
-    'mocha ./test_runner.js'
+    'mocha ./test_runner.js'+ reporter
   ];
   jake.exec(cmds, {printStdout: true, printStderr: true}, function () {
-//    complete();
+    complete();
   });
 });
 
 desc('Test all and Run:');
 task('testall', ['default', 'testjake', 'test', 'run'], {async: false, printStdout: true, printStderr: true}, function () {
-  });
-
-
-
-
-
+});
 
 desc('Watch js, Test and Run:');
 watchTask(['test', 'run'], function () {
