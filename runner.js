@@ -109,35 +109,34 @@ function testDefine(){
           cfg.compiler.test_define];
 }
 
-// function findTests(){
-//   var files      = fs.readdirSync(unitTestsPath());
-//   var filenames  = getTestFilenames(files);
-//   var foundCount = 0;
-//   data.bases     = basenames(filenames);
-//   testFileSize = data.bases.length;
-//   bar.init(testFileSize);
-// }
+ function findTests(){
+   var files      = fs.readdirSync(unitTestsPath());
+   var filenames  = getTestFilenames(files);
+   var foundCount = 0;
+   data.bases     = basenames(filenames);
+   testFileSize = data.bases.length;
+   bar.init(testFileSize);
+ }
 
-// FIXME doesn't work on travis
-//function findTests(res){
-//  return new Promise(function(resolve, reject){
-//    var files = fs.readdir(cfg.unitTestsPath, function(err, files){
-//      if(err){
-//        console.log('rejected')
-//        reject("Error: Can't find tests:", err);
-//      }
-//      else{
-//        var filenames  = getTestFilenames(files);
-//        var foundCount = 0;
-//        data.bases     = basenames(filenames);
-////        console.log('data.bases', data.bases)
-//        testFileSize = data.bases.length;
-//        bar.init(testFileSize);
-//        resolve('found');
-//      }
-//    });
-//  });
-//}
+function findTests(res){
+  return new Promise(function(resolve, reject){
+    var files = fs.readdir(cfg.unitTestsPath, function(err, files){
+      if(err){
+        console.log('rejected')
+        reject("Error: Can't find tests:", err);
+      }
+      else{
+        var filenames  = getTestFilenames(files);
+        var foundCount = 0;
+        data.bases     = basenames(filenames);
+//        console.log('data.bases', data.bases)
+        testFileSize = data.bases.length;
+        bar.init(testFileSize);
+        resolve('found');
+      }
+    });
+  });
+}
 
 function buildTests(){
 //  console.log('here');
