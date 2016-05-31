@@ -76,7 +76,9 @@ linker:
 
 mocha:
   ui: 'tdd'
-  reporter: 'nyan'
+#  reporter: 'nyan'
+#  reporter: 'min'
+  reporter: 'progress'
 
 noBar: false
 

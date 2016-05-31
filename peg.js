@@ -7,8 +7,6 @@ var parser = require(pegFilename);
 //var gp = require('./generate_parser.js');
 //gp.generateParserSource(buildPgScript(), pegFilename);
 
-//console.log('here');
-
 exports.buildParser = function(string){
   return PEG.buildParser(string, {trace: false});
 };

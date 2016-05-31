@@ -20,36 +20,35 @@ var Promise = require('bluebird'),
 
 exports.runTests = function(){
   cleanSync();
-  console.log('building unity');
   buildUnity()
     .then(function(res){
-      console.log(moment().format("hh.mm.ss"), 'finding tests');
+      //  console.log(moment().format("hh.mm.ss"), 'finding tests');
       return findTests();
     })
     .then(function(res){
-      console.log(moment().format("hh.mm.ss"), 'building tests');
+      //  console.log(moment().format("hh.mm.ss"), 'building tests');
       return buildTestsSync();
     })
     .then(function(res){
-      console.log('\n', moment().format("hh.mm.ss"), 'finding files');
+      //  console.log('\n', moment().format("hh.mm.ss"), 'finding files');
       return findRequisiteCFiles();
     })
     .then(function(res){
-      console.log(moment().format("hh.mm.ss"), 'building requisites');
+      //  console.log(moment().format("hh.mm.ss"), 'building requisites');
       return buildRequisiteCFiles();
     })
     .then(function(res){
-      console.log(moment().format("hh.mm.ss"), 'building tests 2');
+      //  console.log(moment().format("hh.mm.ss"), 'building tests 2');
       return buildTests();
     })
     .catch(function(error){
-      console.log(moment().format("hh.mm.ss"), '*** CAUGHT ERROR! ***');
+      //  console.log(moment().format("hh.mm.ss"), '*** CAUGHT ERROR! ***');
       if(error) console.log('Error:', error);
     });
 };
 
 function awaitFileExistance(file){
-  console.log(file);
+//  console.log(file);
   var x = 0;
   return new Promise(function(resolve, reject){
     var int = setInterval(function(){

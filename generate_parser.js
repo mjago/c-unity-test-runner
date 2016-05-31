@@ -131,16 +131,16 @@ var pg_defs =
       pg_exp_was_msg     +
       pg_rpt_sht;
 
-buildPgScript = function() {
+var buildPgScript = function() {
   return pg_defs;
-};
+}
 
-buildParser = function(string){
-//  return PEG.buildParser(string,parserOptions);
+var buildParser = function(string){
+  //  return PEG.buildParser(string,parserOptions);
   return PEG.buildParser(string,{});
 };
 
-parse = function(parser, x){
+var parse = function(parser, x){
   try {
     return parser.parse(x);
   }
@@ -155,7 +155,7 @@ exports.generateParserSource = function(str, filename){
   fs.writeFileSync(filename, 'module.exports = ' + PEG.buildParser(str, parserOptions), 'utf-8');
 };
 
-this.generateParserSource(buildPgScript(), pegFilename);
+//fixme this.generateParserSource(buildPgScript(), pegFilename);
 
 describe('test setup', function() {
   it('should assert 1', function(){
