@@ -3,4 +3,4 @@ node_js:
   - "4.0"
 
 script:
-  - node ./test_runner.js
+  - mocha ./test_runner.js
