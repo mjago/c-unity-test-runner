@@ -6,13 +6,11 @@ engines:
     enabled: true
     config:
       languages:
-      - ruby
       - javascript
 ratings:
   paths:
-  - lib/**
-  - "**.rb"
-  - "**.go"
+  - "**.js"
 exclude_paths:
-- test/**/*
-- example.rb
+- test_runner.js
+- peg_parser.js
+- generate_parser.js
