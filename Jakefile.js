@@ -27,7 +27,7 @@ task('testjake', {async: true}, function () {
 desc('Run C Unity Test Runner:');
 task('run', {async: false}, function () {
   var cmds = [
-    'node ./runner.js'
+    'node ./index.js'
   ];
   jake.exec(cmds, {printStdout: true, printStderr: true}, function () {
     complete();
