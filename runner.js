@@ -17,8 +17,7 @@ var Promise = require('bluebird'),
     filesProcessed  = 0,
     moment          = require('moment');
 
-
-exports.runTests = function(){
+var run = function(mode){
   cleanSync();
   buildUnity()
     .then(function(res){
@@ -393,8 +392,6 @@ function cleanSync()
   clean.clean(cfg.compilerBuildPath);
 }
 
-this.runTests();
-
 module.exports = {
   data: data,
 
@@ -440,3 +437,5 @@ module.exports = {
   objectFilesExtension: cfg.objectFilesExtension,
   objectFilesPath: cfg.objectFilesPath,
 };
+
+module.exports.run = run
