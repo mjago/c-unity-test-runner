@@ -6,6 +6,10 @@ engine.use( "./prepare.js")
   .use( "./compile.js")
   .use( "./collect.js")
   .use( "./compile_gcc.js")
+  .use( "./find_tests.js")
+  .use( "./build_tests.js")
+  .use( "./find_requisite_c_files.js")
+  .use( "./build_requisite_c_files.js")
   .use( "./link.js")
   .use( "./run.js")
   .use( "./store.js");
@@ -111,7 +115,57 @@ function collect_result(error, result) {
 }
 
 function compileGCC_result(error, result) {
-console.log('here');
+  console.log('compiled');
+  engine.act({cmd: 'findTests', cfg: cfg}, findTests_result);
 }
 
-engine.act({cmd: 'collect'}, collect_result);
+function findTests_result(error, result) {
+  //console.log('filenames',result.filenames);
+  //console.log('basenames',result.basenames);
+  console.log('found files');
+  engine.act({cmd: 'buildTests',
+              cfg: cfg,
+              filenames: result.filenames,
+              basenames: result.basenames },
+             buildTests_result);
+}
+
+function buildTests_result(error, result) {
+//  console.log(result.headers);
+  console.log('buildTestsSync built!')
+  engine.act({cmd: 'findRequisiteCFiles',
+              cfg: cfg,
+              headers: result.headers},
+             findRequisiteCFiles_result);
+}
+
+function findRequisiteCFiles_result(error, result) {
+//  console.log(result.includedCFiles);
+  console.log('requisite C files found!');
+  engine.act({cmd: 'buildRequisiteCFiles',
+              cfg: cfg,
+              includedCFiles: result.includedCFiles},
+//              includedCFiles: ['test']},
+             buildRequisiteCFiles_result);
+}
+
+function buildRequisiteCFiles_result(error, result) {
+//  console.log('args', result.args)
+//  console.log('basename', result.basename)
+//  console.log('requisite C files built!');
+  engine.act({cmd: 'compileGCC',
+              args: result.args,
+              basename: result.basename},
+             builtRequisiteCFiles_result);
+}
+
+function builtRequisiteCFiles_result(error, result) {
+  console.log('built!');
+}
+
+function runTests() {
+  engine.act({cmd: 'collect'}, collect_result);
+}
+
+runTests();
+

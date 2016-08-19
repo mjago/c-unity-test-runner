@@ -77,8 +77,10 @@ function findRequisiteCFiles(){
     var tempFiles = (fs.readdirSync('' + dir));
     tempFiles.map(function(temp){
       var cBase = path.basename(temp, '.c');
+//      console.log('cbase',cBase)
       headers.map(function(header){
         var hBase = removeIncludeMarkers(header);
+//        console.log('hbase',hBase)
         if(hBase === cBase && cBase !== 'unity'){
           data.includedCFiles.push('' + dir + temp);
         }
@@ -202,6 +204,7 @@ function buildTestsSync(){
                    checkLength);
       data.headers = data.headers.concat(headers);
     }
+    console.log(data.headers);
   });
 }
 
@@ -230,6 +233,7 @@ function buildRequisiteCFiles(){
     }
     else {
       data.includedCFiles.map(function(inc){
+        console.log('inc',inc);
         basename = path.basename(inc, '.c');
         details.push(cfg.compilerExec);
         details.push(requisiteCArgs(basename));

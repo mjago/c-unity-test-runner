@@ -11,10 +11,9 @@ exports.run = function (details, basename, runCount, reporter){
   var resultsFile = createResultsStream(basename);
   var cmd = details.shift();
   var args = details.shift();
-  console.log('here');
   console.log('in spawner');
-//  console.log('cmd', cmd);
-//  console.log('args', args);
+  console.log('cmd', cmd);
+  console.log('args', args);
   var child = spawn(cmd, args);
 //  console.log('spawned', cmd, args);
   child.stdout.pipe(resultsFile);

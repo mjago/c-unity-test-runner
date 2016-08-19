@@ -3,7 +3,7 @@ const fs = require('fs');
 var clean = require('./clean.js');
 var cfg = require("./gcc.js");
 
-module.exports = function(options){
+module.exports = function(opts){
 
   this.add({cmd: 'collect'}, collect);
 
@@ -23,6 +23,7 @@ module.exports = function(options){
   }
 
   function runnerExecOutput(args) {
+    console.log( "pushing ofbjcet prefix")
     args.push(cfg.objectPrefix +
               cfg.compilerBuildPath +
               cfg.runner.object);
@@ -56,21 +57,6 @@ module.exports = function(options){
     });
   }
 
-  function spawnRunner(details, basename, reporter){
-    spawner.run(details, basename, 0, reporter);
-  }
-
-  function buildUnity(){
-    var details = [];
-    var basename = 'unity';
-    var reporter = null;
-    details.push(cfg.compilerExec);
-    details.push(runnerExecArgs());
-    console.log(details);
-    spawnRunner(details, basename, function(){});
-    //  return awaitFileExistance(cfg.compilerBuildPath + cfg.runner.object + '');
-  }
-
   function setGuard() {
     failTimeout = setTimeout(function(test_count){
       console.log('Failed! *********************');
@@ -80,5 +66,5 @@ module.exports = function(options){
 
   function clearGuard() {
     clearTimeout(failTimeout);
-  };
+  }
 };

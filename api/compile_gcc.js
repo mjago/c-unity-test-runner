@@ -2,6 +2,7 @@
 const fs = require('fs');
 var clean = require('./clean.js');
 var cfg = require("./gcc.js");
+var spawner = require('./spawner.js');
 
 module.exports = function(options){
 
@@ -11,16 +12,15 @@ module.exports = function(options){
   this.add({cmd: 'compileGCC'}, compileGCC);
 
   function compileGCC(msg, respond) {
-    setGuard();
+    console.log('compile gcc');
+//    setGuard();
     console.log('compiling', msg.basename, 'with GCC...');
-    var spawner = require('./spawner.js');
-//    console.log(msg.args)
+    //console.log('args', msg.args);
     spawner.run(msg.args, msg.basename, 0, function(){
       console.log('finished compiling!');
-      clearGuard();
+//      clearGuard();
       respond(null, {});
     });
-
   }
 
   function runnerExecOutput(args) {
