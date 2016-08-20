@@ -14,7 +14,7 @@ module.exports = function(opts){
     var details = [];
     var basename = 'unity';
     var reporter = null;
-    console.log('collecting arguments...');
+//    console.log('collecting arguments...');
     details.push(cfg.compilerExec);
     details.push(runnerExecArgs());
 //    console.log(details);
@@ -23,7 +23,6 @@ module.exports = function(opts){
   }
 
   function runnerExecOutput(args) {
-    console.log( "pushing ofbjcet prefix")
     args.push(cfg.objectPrefix +
               cfg.compilerBuildPath +
               cfg.runner.object);
