@@ -1,0 +1,20 @@
+
+@startuml
+  entity.id -> [actCompile]
+  [actCompile] <-- entity.id.args
+  [actCompile] <..> GCC : cli
+  [actCompile] -> entity.id.compileStderr
+  [actCompile] -> entity.id.compileStdout
+  [actCompile] -> entity.id.compileResult
+  [actCompile] -down-> actResult.entity.id
+@enduml
+
+@startuml
+  entity.id -> [Linker]
+  [actLink] <-- entity.id.args
+  [actLink] <..> GCCLD : cli
+  [actLink] -> entity.linkStderr
+  [actLink] -> entity.linkStdout
+  [actLink] -> entity.linkResult
+@enduml
+
